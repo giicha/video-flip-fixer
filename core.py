@@ -1,13 +1,33 @@
 import os
+import sys
 import subprocess
 import json
+
+# NullWriter class intercepts download logs when stdout/stderr streams are unavailable
+class NullWriter:
+    def write(self, text): pass
+    def flush(self): pass
+
+# Fallback: if sys.stdout or sys.stderr are stripped by PyInstaller, replace them
+if sys.stdout is None: sys.stdout = NullWriter()
+if sys.stderr is None: sys.stderr = NullWriter()
+
+# Safely import static-ffmpeg after stream redirection
 from static_ffmpeg import run
 
-FFMPEG_PATH, FFPROBE_PATH = run.get_or_fetch_platform_executables_else_raise()
+def get_ffmpeg_paths():
+    """Automatically downloads fresh FFmpeg binaries on first run and returns paths."""
+    try:
+        ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
+        return ffmpeg_exe, ffprobe_exe
+    except Exception as e:
+        print(f"Error fetching ffmpeg binaries: {e}")
+        return None, None
 
 def check_rotation(file_path):
-    if not os.path.exists(FFPROBE_PATH):
-        return 0, "Error: Internal ffprobe.exe not found!"
+    _, FFPROBE_PATH = get_ffmpeg_paths()
+    if not FFPROBE_PATH or not os.path.exists(FFPROBE_PATH):
+        return 0, "Error: ffprobe engine not ready!"
 
     cmd = [
         FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", 
@@ -46,8 +66,9 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
     def send_log(msg):
         if log_callback: log_callback(str(msg))
 
-    if not os.path.exists(FFMPEG_PATH):
-        send_log("Error: Internal ffmpeg.exe not found!")
+    FFMPEG_PATH, _ = get_ffmpeg_paths()
+    if not FFMPEG_PATH or not os.path.exists(FFMPEG_PATH):
+        send_log("Error: ffmpeg engine not ready!")
         return
 
     try:
@@ -59,7 +80,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
             send_log(f"-> {os.path.basename(file_path)}: Rotation is already 0° (skipping).")
             return
 
-        send_log(f"-> {os.path.basename(file_path)}: Found {rotation}° rotation. Resetting metadata matrix...")
+        send_log(f"-> {os.path.basename(file_path)}: Found {rotation}° rotation. Resetting display matrix...")
         dir_name = os.path.dirname(file_path)
         base_name = os.path.basename(file_path)
         name_without_ext, ext = os.path.splitext(base_name)
@@ -93,7 +114,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         if mode == "overwrite":
             os.remove(file_path)
             os.rename(temp_output, file_path)
-            send_log(f"Successfully updated original: {base_name}")
+            send_log(f"Successfully updated original file: {base_name}")
         else:
             send_log(f"Successfully saved fixed file: {os.path.basename(temp_output)}")
     except Exception as e:
