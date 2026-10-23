@@ -1,15 +1,14 @@
 import os
 import subprocess
 import json
+from static_ffmpeg import run
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-BIN_DIR = os.path.join(BASE_DIR, "bin")
-FFMPEG_PATH = os.path.join(BIN_DIR, "ffmpeg.exe")
-FFPROBE_PATH = os.path.join(BIN_DIR, "ffprobe.exe")
+# Автоматически получаем пути к встроенным full-версиям ffmpeg и ffprobe
+FFMPEG_PATH, FFPROBE_PATH = run.get_or_fetch_platform_executables_else_raise()
 
 def check_rotation(file_path):
     if not os.path.exists(FFPROBE_PATH):
-        return 0, "Ошибка: ffprobe.exe не найден!"
+        return 0, "Ошибка: Внутренний ffprobe.exe не найден!"
 
     cmd = [
         FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", 
@@ -17,8 +16,18 @@ def check_rotation(file_path):
         "-of", "json", file_path
     ]
     try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore', creationflags=subprocess.CREATE_NO_WINDOW)
-        if not result.stdout or not result.stdout.strip(): return 0, "Ок"
+        # Запуск процесса без всплывающего черного окна консоли Windows
+        result = subprocess.run(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True, 
+            errors='ignore', 
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            timeout=15
+        )
+        if not result.stdout or not result.stdout.strip(): 
+            return 0, "Ок"
         data = json.loads(result.stdout)
         
         # Проверяем тег контейнера
@@ -34,7 +43,7 @@ def check_rotation(file_path):
                 rotation = sd.get("rotation")
                 if rotation is not None: return abs(int(float(rotation))), "Ок"
     except Exception as e:
-        return 0, f"Ошибка: {str(e)}"
+        return 0, f"Ошибка ffprobe: {str(e)}"
     return 0, "Ок"
 
 def process_video(file_path, mode="copy_near", output_folder=None, log_callback=None):
@@ -42,7 +51,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         if log_callback: log_callback(str(msg))
 
     if not os.path.exists(FFMPEG_PATH):
-        send_log("Ошибка: Нужен FFmpeg. Нажмите синюю кнопку 'Обновить FFmpeg' справа внизу!")
+        send_log("Ошибка: Внутренний ffmpeg.exe не найден!")
         return
 
     try:
@@ -54,25 +63,36 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
             send_log(f"-> {os.path.basename(file_path)}: Поворот уже 0° (исправление не требуется).")
             return
 
-        send_log(f"-> {os.path.basename(file_path)}: Полный сброс всех скрытых матриц...")
+        send_log(f"-> {os.path.basename(file_path)}: Обнаружен поворот {rotation}°. Сброс всех скрытых матриц...")
         dir_name = os.path.dirname(file_path)
         base_name = os.path.basename(file_path)
         name_without_ext, ext = os.path.splitext(base_name)
 
-        if mode == "overwrite": temp_output = os.path.join(dir_name, f"temp_fix_{base_name}")
-        elif mode == "copy_near": temp_output = os.path.join(dir_name, f"{name_without_ext}_fixed{ext}")
+        if mode == "overwrite": 
+            temp_output = os.path.join(dir_name, f"temp_fix_{base_name}")
+        elif mode == "copy_near": 
+            temp_output = os.path.join(dir_name, f"{name_without_ext}_fixed{ext}")
         elif mode == "copy_to_folder":
             os.makedirs(output_folder, exist_ok=True)
             temp_output = os.path.join(output_folder, base_name)
-        else: return
+        else: 
+            return
 
-        # Сбрасывает display_rotation на 0 и в контейнере, и во всех внутренних стримах
+        # Команда сброса display_rotation на 0 во всех потоках без перекодирования
         cmd = [FFMPEG_PATH, "-y", "-display_rotation", "0", "-i", file_path, "-c", "copy", "-map_metadata", "0", temp_output]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore', creationflags=subprocess.CREATE_NO_WINDOW)
+        result = subprocess.run(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True, 
+            errors='ignore', 
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
         
         if result.returncode != 0:
-            send_log(f"Ошибка: {result.stderr}")
-            if os.path.exists(temp_output): os.remove(temp_output)
+            send_log(f"Ошибка ffmpeg: {result.stderr}")
+            if os.path.exists(temp_output): 
+                os.remove(temp_output)
             return
 
         if mode == "overwrite":

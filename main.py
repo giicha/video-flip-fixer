@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 import core
-import updater
 
 # Глобальный перехватчик критических ошибок Python, чтобы программа не вылетала молча
 def exception_hook(exctype, value, tb):
@@ -17,18 +16,6 @@ def exception_hook(exctype, value, tb):
     sys.exit(1)
 
 sys.excepthook = exception_hook
-
-class UpdateThread(QThread):
-    log_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(bool)
-
-    def run(self):
-        try:
-            success = updater.download_ffmpeg(progress_callback=self.log_signal.emit)
-            self.finished_signal.emit(success)
-        except Exception as e:
-            self.log_signal.emit(f"Ошибка потока обновления: {e}")
-            self.finished_signal.emit(False)
 
 class ProcessThread(QThread):
     """Безопасный фоновый поток обработки видео."""
@@ -134,11 +121,15 @@ class MainWindow(QMainWindow):
 
         bottom_layout = QHBoxLayout()
         self.btn_start = QPushButton("СТАРТ")
-        self.btn_start.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; height: 30px;")
-        self.btn_update_ffmpeg = QPushButton("Обновить FFmpeg")
+        self.btn_start.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; height: 35px; width: 150px;")
+        
+        # Добавляем информационную надпись вместо старой кнопки обновления
+        self.lbl_status = QLabel("Движок: Автономный пакет static-ffmpeg (Full-бинарники)")
+        self.lbl_status.setStyleSheet("color: green; font-style: italic;")
         
         bottom_layout.addWidget(self.btn_start)
-        bottom_layout.addWidget(self.btn_update_ffmpeg)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.lbl_status)
         main_layout.addLayout(bottom_layout)
 
         self.btn_add_files.clicked.connect(self.choose_files)
@@ -146,7 +137,6 @@ class MainWindow(QMainWindow):
         self.btn_clear.clicked.connect(self.clear_all)
         self.radio_copy_folder.toggled.connect(self.toggle_folder_button)
         self.btn_select_folder.clicked.connect(self.choose_output_folder)
-        self.btn_update_ffmpeg.clicked.connect(self.start_ffmpeg_update)
         self.btn_start.clicked.connect(self.start_processing)
 
     def dragEnterEvent(self, event):
@@ -207,21 +197,6 @@ class MainWindow(QMainWindow):
     def append_log(self, text):
         self.log_output.append(str(text))
 
-    def start_ffmpeg_update(self):
-        self.btn_update_ffmpeg.setEnabled(False)
-        self.append_log("=== Запуск обновления FFmpeg ===")
-        self.update_thread = UpdateThread()
-        self.update_thread.log_signal.connect(self.append_log)
-        self.update_thread.finished_signal.connect(self.ffmpeg_update_finished)
-        self.update_thread.start()
-
-    def ffmpeg_update_finished(self, success):
-        self.btn_update_ffmpeg.setEnabled(True)
-        if success:
-            self.append_log("=== Обновление успешно завершено! ===")
-        else:
-            self.append_log("=== Ошибка при обновлении ===")
-
     def start_processing(self):
         if not self.input_files:
             self.append_log("Ошибка: Список файлов пуст!")
@@ -238,9 +213,9 @@ class MainWindow(QMainWindow):
 
         self.btn_start.setEnabled(False)
         self.progress_bar.setValue(0)
-        self.append_log("=== Старт обработки файлов ===")
+        self.append_log("=== Старт пакетной обработки ===")
 
-         # Запускаем поток обработки безопасным способом
+        # Запускаем поток обработки безопасным способом
         self.process_thread = ProcessThread(self.input_files, mode, self.selected_output_folder)
         self.process_thread.log_signal.connect(self.append_log)
         self.process_thread.progress_signal.connect(self.progress_bar.setValue)
@@ -251,6 +226,7 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(True)
         self.input_files.clear()
         self.update_drop_label()
+        self.append_log("=== Пакетная обработка успешно завершена ===")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
