@@ -4,17 +4,21 @@ import subprocess
 import json
 import traceback
 
+# Upgraded NullWriter to fully mimic a headless console stream
 class NullWriter:
     def write(self, text): pass
     def flush(self): pass
+    def isatty(self): return False  # Fixes the 'progress' module validation crash
 
+# Redirect system streams if stripped by PyInstaller inside the windowed .exe
 if sys.stdout is None: sys.stdout = NullWriter()
 if sys.stderr is None: sys.stderr = NullWriter()
 
+# Safely import static-ffmpeg after stream enhancement
 from static_ffmpeg import run
 
 def get_ffmpeg_paths(log_callback=None):
-    """Attempts to fetch paths and forwards internal errors to log window."""
+    """Fetches static-ffmpeg paths and safely logs any internal environment errors."""
     try:
         ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
         return ffmpeg_exe, ffprobe_exe
@@ -53,9 +57,9 @@ def check_rotation(file_path, log_callback=None):
         
         streams = data.get("streams", [])
         if streams:
-            r = streams[0].get("tags", {}).get("rotate")
+            r = streams.get("tags", {}).get("rotate")
             if r is not None: return abs(int(float(r))), "OK"
-            for sd in streams[0].get("side_data_list", []):
+            for sd in streams.get("side_data_list", []):
                 rotation = sd.get("rotation")
                 if rotation is not None: return abs(int(float(rotation))), "OK"
     except Exception as e:
