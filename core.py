@@ -4,7 +4,7 @@ import subprocess
 import json
 import traceback
 
-# Upgraded NullWriter to fully mimic a headless console stream
+# NullWriter class intercepts download logs when stdout/stderr streams are unavailable
 class NullWriter:
     def write(self, text): pass
     def flush(self): pass
@@ -14,11 +14,10 @@ class NullWriter:
 if sys.stdout is None: sys.stdout = NullWriter()
 if sys.stderr is None: sys.stderr = NullWriter()
 
-# Safely import static-ffmpeg after stream enhancement
 from static_ffmpeg import run
 
 def get_ffmpeg_paths(log_callback=None):
-    """Fetches static-ffmpeg paths and safely logs any internal environment errors."""
+    """Automatically downloads fresh FFmpeg binaries on first run and returns paths."""
     try:
         ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
         return ffmpeg_exe, ffprobe_exe
@@ -52,14 +51,19 @@ def check_rotation(file_path, log_callback=None):
             return 0, "OK"
         data = json.loads(result.stdout)
         
+        # Check container format tags first
         rot = data.get("format", {}).get("tags", {}).get("rotate")
         if rot is not None: return abs(int(float(rot))), "OK"
         
+        # Check video stream tags safely treating 'streams' as a list
         streams = data.get("streams", [])
-        if streams:
-            r = streams.get("tags", {}).get("rotate")
+        if streams and isinstance(streams, list):
+            # Access the first stream item in the list safely
+            first_stream = streams[0]
+            r = first_stream.get("tags", {}).get("rotate")
             if r is not None: return abs(int(float(r))), "OK"
-            for sd in streams.get("side_data_list", []):
+            
+            for sd in first_stream.get("side_data_list", []):
                 rotation = sd.get("rotation")
                 if rotation is not None: return abs(int(float(rotation))), "OK"
     except Exception as e:
