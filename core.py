@@ -2,33 +2,48 @@ import os
 import sys
 import subprocess
 import json
-import traceback
 
-# NullWriter class intercepts download logs when stdout/stderr streams are unavailable
+# 1. Setup global permanent directory inside user's profile for offline persistence
+user_home = os.path.expanduser("~")
+PERMANENT_BIN_DIR = os.path.join(user_home, ".video_flip_fixer_bin")
+os.makedirs(PERMANENT_BIN_DIR, exist_ok=True)
+
+# 2. Inject environment variables to force static-ffmpeg to use our permanent directory
+os.environ["FFMPEG_BIN"] = PERMANENT_BIN_DIR
+
+# 3. Suppress console writing issues for PyInstaller windowed mode
 class NullWriter:
     def write(self, text): pass
     def flush(self): pass
-    def isatty(self): return False  # Fixes the 'progress' module validation crash
+    def isatty(self): return False
 
-# Redirect system streams if stripped by PyInstaller inside the windowed .exe
 if sys.stdout is None: sys.stdout = NullWriter()
 if sys.stderr is None: sys.stderr = NullWriter()
 
+# 4. Safely import static-ffmpeg after path forcing and stream redirection
 from static_ffmpeg import run
 
-def get_ffmpeg_paths(log_callback=None):
-    """Automatically downloads fresh FFmpeg binaries on first run and returns paths."""
-    try:
-        ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
+def get_ffmpeg_paths():
+    """Returns local paths immediately if offline, otherwise lets static-ffmpeg fetch them once."""
+    ffmpeg_exe = os.path.join(PERMANENT_BIN_DIR, "ffmpeg.exe")
+    ffprobe_exe = os.path.join(PERMANENT_BIN_DIR, "ffprobe.exe")
+    
+    # Offline shortcut: if binaries already exist in our permanent folder, skip network completely
+    if os.path.exists(ffmpeg_exe) and os.path.exists(ffprobe_exe):
         return ffmpeg_exe, ffprobe_exe
-    except Exception as e:
-        if log_callback:
-            error_details = traceback.format_exc()
-            log_callback(f"Engine Initialization Failed:\n{error_details}")
-        return None, None
+        
+    try:
+        # If not present, let static-ffmpeg download them into our PERMANENT_BIN_DIR
+        ffmpeg_fetched, ffprobe_fetched = run.get_or_fetch_platform_executables_else_raise()
+        return ffmpeg_fetched, ffprobe_fetched
+    except Exception:
+        # Final fallback in case of strict network blocks
+        if os.path.exists(ffmpeg_exe) and os.path.exists(ffprobe_exe):
+            return ffmpeg_exe, ffprobe_exe
+    return None, None
 
 def check_rotation(file_path, log_callback=None):
-    _, FFPROBE_PATH = get_ffmpeg_paths(log_callback)
+    _, FFPROBE_PATH = get_ffmpeg_paths()
     if not FFPROBE_PATH or not os.path.exists(FFPROBE_PATH):
         return 0, "Error: ffprobe engine not ready!"
 
@@ -51,14 +66,11 @@ def check_rotation(file_path, log_callback=None):
             return 0, "OK"
         data = json.loads(result.stdout)
         
-        # Check container format tags first
         rot = data.get("format", {}).get("tags", {}).get("rotate")
         if rot is not None: return abs(int(float(rot))), "OK"
         
-        # Check video stream tags safely treating 'streams' as a list
         streams = data.get("streams", [])
         if streams and isinstance(streams, list):
-            # Access the first stream item in the list safely
             first_stream = streams[0]
             r = first_stream.get("tags", {}).get("rotate")
             if r is not None: return abs(int(float(r))), "OK"
@@ -74,7 +86,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
     def send_log(msg):
         if log_callback: log_callback(str(msg))
 
-    FFMPEG_PATH, _ = get_ffmpeg_paths(log_callback)
+    FFMPEG_PATH, _ = get_ffmpeg_paths()
     if not FFMPEG_PATH or not os.path.exists(FFMPEG_PATH):
         send_log("Error: ffmpeg engine not ready!")
         return
