@@ -1,0 +1,42 @@
+name: Build and Release
+
+# Скрипт будет запускаться автоматически каждый раз, когда ты создаешь "тег" версии (например, v1.0, v1.1.2)
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest  # Запускаем чистую виртуальную машину на Windows
+
+    steps:
+    # 1. Скачиваем код твоего репозитория на виртуальную машину
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. Разворачиваем Python актуальной стабильной версии
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-cache: 'pip'
+        python-version: '3.11'
+
+    # 3. Устанавливаем все зависимости, включая библиотеки интерфейса и сборщик
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyQt6 requests static-ffmpeg pyinstaller
+
+    # 4. Запускаем наш подготовленный скрипт сборки
+    - name: Build with PyInstaller
+      run: |
+        python build_release.py
+
+    # 5. Автоматически создаем релиз на GitHub и прикрепляем туда готовый video-flip-fixer.exe
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/video-flip-fixer.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Встроенный ключ безопасности GitHub
