@@ -8,24 +8,21 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 import core
 
-# Глобальный перехватчик критических ошибок Python, чтобы программа не вылетала молча
 def exception_hook(exctype, value, tb):
     error_msg = "".join(traceback.format_exception(exctype, value, tb))
-    print(error_msg) # вывод в консоль VS Code
-    QMessageBox.critical(None, "Критическая ошибка", f"Программа аварийно остановилась:\n\n{error_msg}")
+    print(error_msg)
+    QMessageBox.critical(None, "Critical Error", f"Application crashed:\n\n{error_msg}")
     sys.exit(1)
 
 sys.excepthook = exception_hook
 
 class ProcessThread(QThread):
-    """Безопасный фоновый поток обработки видео."""
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal()
 
     def __init__(self, files, mode, output_folder):
         super().__init__()
-        # Создаем изолированную копию списка строк, чтобы избежать конфликтов памяти
         self.files = [str(f) for f in files]
         self.mode = str(mode)
         self.output_folder = str(output_folder) if output_folder else ""
@@ -38,7 +35,6 @@ class ProcessThread(QThread):
                 return
 
             for index, file_path in enumerate(self.files):
-                # Вызываем обработку, передавая безопасный сигнал emit
                 core.process_video(
                     file_path=file_path, 
                     mode=self.mode, 
@@ -49,7 +45,7 @@ class ProcessThread(QThread):
                 progress = int(((index + 1) / total_files) * 100)
                 self.progress_signal.emit(progress)
         except Exception as e:
-            self.log_signal.emit(f"Ошибка внутри фонового потока: {e}")
+            self.log_signal.emit(f"Thread error: {e}")
         
         self.finished_signal.emit()
 
@@ -67,7 +63,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
-        self.drop_label = QLabel("Перетащите видеофайлы или папки сюда\nили используйте кнопки ниже")
+        self.drop_label = QLabel("Drag & Drop video files or folders here\nor use the buttons below")
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet("""
             QLabel { border: 2px dashed #aaa; border-radius: 10px; padding: 30px; background-color: #f9f9f9; font-size: 14px; color: #555; }
@@ -75,24 +71,24 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.drop_label)
 
         btn_layout = QHBoxLayout()
-        self.btn_add_files = QPushButton("Добавить файлы")
-        self.btn_add_folder = QPushButton("Добавить папку")
-        self.btn_clear = QPushButton("Очистить список")
+        self.btn_add_files = QPushButton("Add Files")
+        self.btn_add_folder = QPushButton("Add Folder")
+        self.btn_clear = QPushButton("Clear List")
         btn_layout.addWidget(self.btn_add_files)
         btn_layout.addWidget(self.btn_add_folder)
         btn_layout.addWidget(self.btn_clear)
         main_layout.addLayout(btn_layout)
 
-        main_layout.addWidget(QLabel("<b>Настройки сохранения:</b>"))
+        main_layout.addWidget(QLabel("<b>Save Options:</b>"))
         
-        self.radio_overwrite = QRadioButton("Заменять оригинальные файлы")
-        self.radio_copy_near = QRadioButton("Создавать копии рядом (с суффиксом _fixed)")
-        self.radio_copy_folder = QRadioButton("Копировать в указанную папку:")
+        self.radio_overwrite = QRadioButton("Overwrite original files")
+        self.radio_copy_near = QRadioButton("Create copies nearby (with _fixed suffix)")
+        self.radio_copy_folder = QRadioButton("Copy to specific folder:")
         self.radio_copy_near.setChecked(True)
 
-        self.btn_select_folder = QPushButton("Выбрать папку...")
+        self.btn_select_folder = QPushButton("Browse...")
         self.btn_select_folder.setEnabled(False)
-        self.lbl_folder_path = QLabel("Папка не выбрана")
+        self.lbl_folder_path = QLabel("No folder selected")
         self.lbl_folder_path.setStyleSheet("color: gray;")
 
         folder_layout = QHBoxLayout()
@@ -110,7 +106,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.radio_copy_near)
         main_layout.addLayout(folder_layout)
 
-        main_layout.addWidget(QLabel("<b>Лог работы:</b>"))
+        main_layout.addWidget(QLabel("<b>Process Log:</b>"))
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
         main_layout.addWidget(self.log_output)
@@ -120,11 +116,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.progress_bar)
 
         bottom_layout = QHBoxLayout()
-        self.btn_start = QPushButton("СТАРТ")
+        self.btn_start = QPushButton("START")
         self.btn_start.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; height: 35px; width: 150px;")
         
-        # Добавляем информационную надпись вместо старой кнопки обновления
-        self.lbl_status = QLabel("Движок: Автономный пакет static-ffmpeg (Full-бинарники)")
+        self.lbl_status = QLabel("Engine: Autonomous static-ffmpeg (Full Binaries)")
         self.lbl_status.setStyleSheet("color: green; font-style: italic;")
         
         bottom_layout.addWidget(self.btn_start)
@@ -154,14 +149,14 @@ class MainWindow(QMainWindow):
         self.update_drop_label()
 
     def choose_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Выберите видеофайлы", "", "Видео (*.mp4 *.mov *.avi *.mkv)")
+        files, _ = QFileDialog.getOpenFileNames(self, "Select Video Files", "", "Videos (*.mp4 *.mov *.avi *.mkv)")
         for f in files:
             if f not in self.input_files:
                 self.input_files.append(f)
         self.update_drop_label()
 
     def choose_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку с видео")
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder with Videos")
         if folder:
             self.add_folder_files(folder)
             self.update_drop_label()
@@ -181,15 +176,15 @@ class MainWindow(QMainWindow):
 
     def update_drop_label(self):
         if self.input_files:
-            self.drop_label.setText(f"Выбрано файлов для обработки: {len(self.input_files)}")
+            self.drop_label.setText(f"Selected files for processing: {len(self.input_files)}")
         else:
-            self.drop_label.setText("Перетащите видеофайлы или папки сюда\nили используйте кнопки ниже")
+            self.drop_label.setText("Drag & Drop video files or folders here\nor use the buttons below")
 
     def toggle_folder_button(self, checked):
         self.btn_select_folder.setEnabled(checked)
 
     def choose_output_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку для сохранения")
+        folder = QFileDialog.getExistingDirectory(self, "Select Output Folder")
         if folder:
             self.selected_output_folder = folder
             self.lbl_folder_path.setText(os.path.basename(folder))
@@ -199,7 +194,7 @@ class MainWindow(QMainWindow):
 
     def start_processing(self):
         if not self.input_files:
-            self.append_log("Ошибка: Список файлов пуст!")
+            self.append_log("Error: File queue is empty!")
             return
 
         mode = "copy_near"
@@ -208,14 +203,13 @@ class MainWindow(QMainWindow):
         elif self.radio_copy_folder.isChecked():
             mode = "copy_to_folder"
             if not self.selected_output_folder:
-                self.append_log("Ошибка: Не выбрана папка для сохранения!")
+                self.append_log("Error: Output folder not selected!")
                 return
 
         self.btn_start.setEnabled(False)
         self.progress_bar.setValue(0)
-        self.append_log("=== Старт пакетной обработки ===")
+        self.append_log("=== Batch processing started ===")
 
-        # Запускаем поток обработки безопасным способом
         self.process_thread = ProcessThread(self.input_files, mode, self.selected_output_folder)
         self.process_thread.log_signal.connect(self.append_log)
         self.process_thread.progress_signal.connect(self.progress_bar.setValue)
@@ -226,7 +220,7 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(True)
         self.input_files.clear()
         self.update_drop_label()
-        self.append_log("=== Пакетная обработка успешно завершена ===")
+        self.append_log("=== Batch processing completed successfully ===")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

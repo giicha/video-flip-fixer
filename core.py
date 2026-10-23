@@ -3,12 +3,11 @@ import subprocess
 import json
 from static_ffmpeg import run
 
-# Автоматически получаем пути к встроенным full-версиям ffmpeg и ffprobe
 FFMPEG_PATH, FFPROBE_PATH = run.get_or_fetch_platform_executables_else_raise()
 
 def check_rotation(file_path):
     if not os.path.exists(FFPROBE_PATH):
-        return 0, "Ошибка: Внутренний ffprobe.exe не найден!"
+        return 0, "Error: Internal ffprobe.exe not found!"
 
     cmd = [
         FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", 
@@ -16,7 +15,6 @@ def check_rotation(file_path):
         "-of", "json", file_path
     ]
     try:
-        # Запуск процесса без всплывающего черного окна консоли Windows
         result = subprocess.run(
             cmd, 
             stdout=subprocess.PIPE, 
@@ -27,43 +25,41 @@ def check_rotation(file_path):
             timeout=15
         )
         if not result.stdout or not result.stdout.strip(): 
-            return 0, "Ок"
+            return 0, "OK"
         data = json.loads(result.stdout)
         
-        # Проверяем тег контейнера
         rot = data.get("format", {}).get("tags", {}).get("rotate")
-        if rot is not None: return abs(int(float(rot))), "Ок"
+        if rot is not None: return abs(int(float(rot))), "OK"
         
-        # Проверяем теги самого видеопотока
         streams = data.get("streams", [])
         if streams:
             r = streams[0].get("tags", {}).get("rotate")
-            if r is not None: return abs(int(float(r))), "Ок"
+            if r is not None: return abs(int(float(r))), "OK"
             for sd in streams[0].get("side_data_list", []):
                 rotation = sd.get("rotation")
-                if rotation is not None: return abs(int(float(rotation))), "Ок"
+                if rotation is not None: return abs(int(float(rotation))), "OK"
     except Exception as e:
-        return 0, f"Ошибка ffprobe: {str(e)}"
-    return 0, "Ок"
+        return 0, f"ffprobe error: {str(e)}"
+    return 0, "OK"
 
 def process_video(file_path, mode="copy_near", output_folder=None, log_callback=None):
     def send_log(msg):
         if log_callback: log_callback(str(msg))
 
     if not os.path.exists(FFMPEG_PATH):
-        send_log("Ошибка: Внутренний ffmpeg.exe не найден!")
+        send_log("Error: Internal ffmpeg.exe not found!")
         return
 
     try:
         rotation, status_msg = check_rotation(file_path)
-        if status_msg != "Ок":
+        if status_msg != "OK":
             send_log(f"-> {status_msg}")
             return
         if rotation == 0:
-            send_log(f"-> {os.path.basename(file_path)}: Поворот уже 0° (исправление не требуется).")
+            send_log(f"-> {os.path.basename(file_path)}: Rotation is already 0° (skipping).")
             return
 
-        send_log(f"-> {os.path.basename(file_path)}: Обнаружен поворот {rotation}°. Сброс всех скрытых матриц...")
+        send_log(f"-> {os.path.basename(file_path)}: Found {rotation}° rotation. Resetting metadata matrix...")
         dir_name = os.path.dirname(file_path)
         base_name = os.path.basename(file_path)
         name_without_ext, ext = os.path.splitext(base_name)
@@ -78,7 +74,6 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         else: 
             return
 
-        # Команда сброса display_rotation на 0 во всех потоках без перекодирования
         cmd = [FFMPEG_PATH, "-y", "-display_rotation", "0", "-i", file_path, "-c", "copy", "-map_metadata", "0", temp_output]
         result = subprocess.run(
             cmd, 
@@ -90,7 +85,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         )
         
         if result.returncode != 0:
-            send_log(f"Ошибка ffmpeg: {result.stderr}")
+            send_log(f"ffmpeg error: {result.stderr}")
             if os.path.exists(temp_output): 
                 os.remove(temp_output)
             return
@@ -98,8 +93,8 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         if mode == "overwrite":
             os.remove(file_path)
             os.rename(temp_output, file_path)
-            send_log(f"Успешно исправлен оригинал: {base_name}")
+            send_log(f"Successfully updated original: {base_name}")
         else:
-            send_log(f"Успешно сохранен исправленный файл: {os.path.basename(temp_output)}")
+            send_log(f"Successfully saved fixed file: {os.path.basename(temp_output)}")
     except Exception as e:
-        send_log(f"Сбой: {str(e)}")
+        send_log(f"Failed: {str(e)}")
