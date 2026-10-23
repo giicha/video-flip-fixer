@@ -19,7 +19,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-cache: 'pip'
+        cache: 'pip'  # Correct parameter name for modern setup-python action
         python-version: '3.11'
 
     - name: Install dependencies

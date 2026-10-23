@@ -2,30 +2,30 @@ import os
 import sys
 import subprocess
 import json
+import traceback
 
-# NullWriter class intercepts download logs when stdout/stderr streams are unavailable
 class NullWriter:
     def write(self, text): pass
     def flush(self): pass
 
-# Fallback: if sys.stdout or sys.stderr are stripped by PyInstaller, replace them
 if sys.stdout is None: sys.stdout = NullWriter()
 if sys.stderr is None: sys.stderr = NullWriter()
 
-# Safely import static-ffmpeg after stream redirection
 from static_ffmpeg import run
 
-def get_ffmpeg_paths():
-    """Automatically downloads fresh FFmpeg binaries on first run and returns paths."""
+def get_ffmpeg_paths(log_callback=None):
+    """Attempts to fetch paths and forwards internal errors to log window."""
     try:
         ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
         return ffmpeg_exe, ffprobe_exe
     except Exception as e:
-        print(f"Error fetching ffmpeg binaries: {e}")
+        if log_callback:
+            error_details = traceback.format_exc()
+            log_callback(f"Engine Initialization Failed:\n{error_details}")
         return None, None
 
-def check_rotation(file_path):
-    _, FFPROBE_PATH = get_ffmpeg_paths()
+def check_rotation(file_path, log_callback=None):
+    _, FFPROBE_PATH = get_ffmpeg_paths(log_callback)
     if not FFPROBE_PATH or not os.path.exists(FFPROBE_PATH):
         return 0, "Error: ffprobe engine not ready!"
 
@@ -66,13 +66,13 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
     def send_log(msg):
         if log_callback: log_callback(str(msg))
 
-    FFMPEG_PATH, _ = get_ffmpeg_paths()
+    FFMPEG_PATH, _ = get_ffmpeg_paths(log_callback)
     if not FFMPEG_PATH or not os.path.exists(FFMPEG_PATH):
         send_log("Error: ffmpeg engine not ready!")
         return
 
     try:
-        rotation, status_msg = check_rotation(file_path)
+        rotation, status_msg = check_rotation(file_path, log_callback)
         if status_msg != "OK":
             send_log(f"-> {status_msg}")
             return
