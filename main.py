@@ -267,7 +267,7 @@ class MainWindow(QMainWindow):
         self.process_thread.finished_signal.connect(self.processing_finished)
         self.process_thread.start()
 
-     def processing_finished(self):
+    def processing_finished(self):
         self.btn_start.setEnabled(True)
         self.input_files.clear()
         self.update_drop_label()
