@@ -10,7 +10,8 @@ def build():
     # 1. Fetch paths inside GitHub Actions environment to locate binaries
     try:
         ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
-        static_ffmpeg_dir = os.path.dirname(ffmpeg_exe)
+        # Get the exact absolute folder where ffmpeg.exe physically resides (resolves ...\bin\win32)
+        static_ffmpeg_dir = os.path.abspath(os.path.dirname(ffmpeg_exe))
         print(f"Target static-ffmpeg binaries found at: {static_ffmpeg_dir}")
     except Exception as e:
         print(f"Error resolving static-ffmpeg paths: {e}")
@@ -30,7 +31,8 @@ def build():
 
     print(f"Target executable filename configured as: {exe_name}.exe")
 
-    # 4. Compile standalone .exe with custom icon and explicit multiple data mappings
+    # 4. Compile standalone .exe mapping files safely to the standard 'bin' folder
+    # Using explicit separate arguments avoids Windows folder loop bugs in PyInstaller
     cmd = [
         "pyinstaller",
         "--noconfirm",
@@ -38,8 +40,8 @@ def build():
         "--windowed",
         f"--name={exe_name}",
         f"--icon=icon.ico",
-        "--add-data", f"icon.ico{os.path.pathsep}.",  # First explicit mapping for app icon asset
-        "--add-data", f"{static_ffmpeg_dir}{os.path.pathsep}bin",  # Second explicit mapping for video utilities
+        "--add-data", f"icon.ico{os.path.pathsep}.",  
+        "--add-data", f"{static_ffmpeg_dir}{os.path.pathsep}bin",  # Explicit separation fixes the crash
         "main.py"
     ]
 
