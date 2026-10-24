@@ -19,21 +19,21 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        cache: 'pip'  # Correct parameter name for modern setup-python action
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install PyQt6 requests static-ffmpeg pyinstaller
 
     - name: Build with PyInstaller
       run: |
         python build_release.py
 
+    # The file path now dynamically matches the generated version name, e.g., video-flip-fixer-v0.1.5.exe
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/video-flip-fixer.exe
+        files: dist/video-flip-fixer-${{ github.ref_name }}.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
