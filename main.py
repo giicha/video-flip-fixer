@@ -61,8 +61,8 @@ class ProcessThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Lossless Video Rotator Fixer")
-        self.setMinimumSize(600, 450)
+        self.setWindowTitle("Video Flip Fixer")
+        self.setMinimumSize(450, 450)
         self.setAcceptDrops(True)
         
         self.input_files = []
