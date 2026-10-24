@@ -16,7 +16,9 @@ Application built with Python 3 and PyQt6. This tool performs **lossless (no re-
 
 It uses an advanced **Web Deployment / Bundled Hybrid Architecture** powered by `static-ffmpeg` to achieve complete autonomy and offline capability without requiring any pre-installed global system dependencies.
 
----
+   <p>
+     <img src="images\video-flip-fixer-screenshot.png" alt="Video flip fixer GUI screenshot" width="450">
+   </p>
 
 ## Key Features
 
