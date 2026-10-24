@@ -6,6 +6,16 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QButtonGroup, QFileDialog, QTextEdit, QProgressBar, QMessageBox)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
+# --- CRITICAL WINDOWS TASKBAR ICON FIX ---
+# Forces Windows to treat the compiled executable as a distinct application, enabling custom taskbar icons.
+if sys.platform == "win32":
+    try:
+        import ctypes
+        myappid = "giicha.videoflipfixer.standalone.1.0"  # Unique Application ID
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
 import core
 
 def exception_hook(exctype, value, tb):
@@ -55,20 +65,19 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Lossless Video Rotator Fixer")
         self.setMinimumSize(600, 450)
         self.setAcceptDrops(True)
-
-        # Smart path resolution for the icon file inside standalone .exe
-        if getattr(sys, 'frozen', False):
-            # If running inside compiled .exe, PyInstaller extracts resources to sys._MEIPASS
-            icon_path = os.path.join(sys._MEIPASS, "icon.ico")
-        else:
-            # Local fallback for running raw script in VS Code
-            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
-
-        from PyQt6.QtGui import QIcon
-        self.setWindowIcon(QIcon(icon_path))
-
+        
         self.input_files = []
         self.selected_output_folder = ""
+
+        # --- SMART ICON RESOLUTION FOR PYINSTALLER SANDBOX ---
+        if getattr(sys, 'frozen', False):
+            icon_path = os.path.join(sys._MEIPASS, "icon.ico")
+        else:
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
+
+        if os.path.exists(icon_path):
+            from PyQt6.QtGui import QIcon
+            self.setWindowIcon(QIcon(icon_path))
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -126,7 +135,13 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         main_layout.addWidget(self.progress_bar)
 
+        # --- BOTTOM LAYOUT CONFIGURATION ---
         bottom_layout = QHBoxLayout()
+        
+        # 1. Properly declare btn_start as an instance attribute using self.
+        self.btn_start = QPushButton("START")
+        
+        # 2. Apply advanced multi-line responsive stylesheet using triple quotes
         self.btn_start.setStyleSheet("""
             QPushButton {
                 font-weight: bold; 
@@ -143,9 +158,20 @@ class MainWindow(QMainWindow):
             }
         """)
         
-        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
-        self.lbl_status.setOpenExternalLinks(True)  
-        self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)  
+        # 3. Establish clickable repository link structure
+        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+        self.lbl_status.setOpenExternalLinks(True)
+        self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        # 4. Assemble the UI layout
+        bottom_layout.addWidget(self.btn_start)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.lbl_status)
+        main_layout.addLayout(bottom_layout)
+        
+        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+        self.lbl_status.setOpenExternalLinks(True)
+        self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
         
         bottom_layout.addWidget(self.btn_start)
         bottom_layout.addStretch()
@@ -241,7 +267,7 @@ class MainWindow(QMainWindow):
         self.process_thread.finished_signal.connect(self.processing_finished)
         self.process_thread.start()
 
-    def processing_finished(self):
+     def processing_finished(self):
         self.btn_start.setEnabled(True)
         self.input_files.clear()
         self.update_drop_label()
