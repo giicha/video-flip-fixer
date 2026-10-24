@@ -3,21 +3,22 @@ import sys
 import subprocess
 import json
 
-# Smart path resolution for PyInstaller sandbox vs local VS Code script execution
+# Определение базовой директории для PyInstaller
 if getattr(sys, 'frozen', False):
-    # Inside compiled .exe: files are extracted to sys._MEIPASS
     BASE_DIR = sys._MEIPASS
 else:
-    # Local script execution in VS Code
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 BIN_DIR = os.path.join(BASE_DIR, "bin")
-FFMPEG_PATH = os.path.join(BIN_DIR, "ffmpeg.exe")
-FFPROBE_PATH = os.path.join(BIN_DIR, "ffprobe.exe")
+
+# Адаптация расширений под ОС
+EXE_EXT = ".exe" if sys.platform == "win32" else ""
+FFMPEG_PATH = os.path.join(BIN_DIR, f"ffmpeg{EXE_EXT}")
+FFPROBE_PATH = os.path.join(BIN_DIR, f"ffprobe{EXE_EXT}")
 
 def check_rotation(file_path, log_callback=None):
     if not os.path.exists(FFPROBE_PATH):
-        return 0, "Error: Local bin/ffprobe.exe not found!"
+        return 0, f"Error: Local bin/ffprobe{EXE_EXT} not found!"
 
     cmd = [
         FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", 
@@ -25,24 +26,27 @@ def check_rotation(file_path, log_callback=None):
         "-of", "json", file_path
     ]
     try:
+        # Убираем creationflags для macOS
+        kwargs = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
         result = subprocess.run(
             cmd, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
             text=True, 
             errors='ignore', 
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            timeout=15
+            timeout=15,
+            **kwargs
         )
         if not result.stdout or not result.stdout.strip(): 
             return 0, "OK"
         data = json.loads(result.stdout)
         
-        # Check container format tags
         rot = data.get("format", {}).get("tags", {}).get("rotate")
         if rot is not None: return abs(int(float(rot))), "OK"
         
-        # Check video stream tags safely
         streams = data.get("streams", [])
         if streams and isinstance(streams, list):
             first_stream = streams[0]
@@ -61,7 +65,7 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
         if log_callback: log_callback(str(msg))
 
     if not os.path.exists(FFMPEG_PATH):
-        send_log("Error: Local bin/ffmpeg.exe not found!")
+        send_log(f"Error: Local bin/ffmpeg{EXE_EXT} not found!")
         return
 
     try:
@@ -90,13 +94,18 @@ def process_video(file_path, mode="copy_near", output_folder=None, log_callback=
             return
 
         cmd = [FFMPEG_PATH, "-y", "-display_rotation", "0", "-i", file_path, "-c", "copy", "-map_metadata", "0", temp_output]
+        
+        kwargs = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
         result = subprocess.run(
             cmd, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
             text=True, 
-            errors='ignore', 
-            creationflags=subprocess.CREATE_NO_WINDOW
+            errors='ignore',
+            **kwargs
         )
         
         if result.returncode != 0:

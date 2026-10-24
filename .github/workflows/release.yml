@@ -2,15 +2,23 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - feat/macos-support
 
 permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: "dist/*.exe"
+          - os: macos-13  # Использование macos-13 (Intel) обеспечивает максимальную обратную совместимость с Catalina
+            artifact_name: "dist/*-macOS.zip"
 
     steps:
     - name: Checkout repository
@@ -21,6 +29,10 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set macOS Deployment Target
+      if: matrix.os == 'macos-13'
+      run: echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> $GITHUB_ENV
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -30,10 +42,9 @@ jobs:
       run: |
         python build_release.py
 
-    # The file path now dynamically matches the generated version name, e.g., video-flip-fixer-v0.1.5.exe
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/video-flip-fixer-${{ github.ref_name }}.exe
+        files: ${{ matrix.artifact_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
