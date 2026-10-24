@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
             }
         """)
         
-        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+        self.lbl_status = QLabel('<a href="hhttps://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
         self.lbl_status.setOpenExternalLinks(True)
         self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
         
@@ -261,4 +261,3 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-    
