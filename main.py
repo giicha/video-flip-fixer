@@ -56,9 +56,17 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(600, 450)
         self.setAcceptDrops(True)
 
+        # Smart path resolution for the icon file inside standalone .exe
+        if getattr(sys, 'frozen', False):
+            # If running inside compiled .exe, PyInstaller extracts resources to sys._MEIPASS
+            icon_path = os.path.join(sys._MEIPASS, "icon.ico")
+        else:
+            # Local fallback for running raw script in VS Code
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
+
         from PyQt6.QtGui import QIcon
-        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.ico")))
-        
+        self.setWindowIcon(QIcon(icon_path))
+
         self.input_files = []
         self.selected_output_folder = ""
 
@@ -119,8 +127,6 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.progress_bar)
 
         bottom_layout = QHBoxLayout()
-        self.btn_start = QPushButton("START")
-           # Устанавливаем умный стиль: зеленый для активной кнопки, серый для заблокированной
         self.btn_start.setStyleSheet("""
             QPushButton {
                 font-weight: bold; 
@@ -137,7 +143,7 @@ class MainWindow(QMainWindow):
             }
         """)
         
-        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
         self.lbl_status.setOpenExternalLinks(True)  
         self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)  
         
