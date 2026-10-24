@@ -153,12 +153,16 @@ class MainWindow(QMainWindow):
         """)
         
         self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
+        self.lbl_status.setAlignment(Qt.AlignmentFlag.AlignCenter) 
         self.lbl_status.setOpenExternalLinks(True)
         self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        bottom_layout.addWidget(self.btn_start)
-        bottom_layout.addStretch()
+        # Add the GitHub link widget to the leftmost position of the layout
         bottom_layout.addWidget(self.lbl_status)
+        # Add an elastic spacer that pushes the link to the left and the button to the right
+        bottom_layout.addStretch()
+        # Add the START button widget to the rightmost position of the layout
+        bottom_layout.addWidget(self.btn_start)
         main_layout.addLayout(bottom_layout)
 
         self.btn_add_files.clicked.connect(self.choose_files)
