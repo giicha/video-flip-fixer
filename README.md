@@ -7,7 +7,6 @@
   <p>
     <img src="https://img.shields.io/github/issues/giicha/video-flip-fixer" />
     <img src="https://img.shields.io/github/license/giicha/video-flip-fixer" />
-    <img src="https://img.shields.io/npm/v/video-flip-fixer?label=version" />
     <img src="https://img.shields.io/github/downloads/giicha/video-flip-fixer/total?label=github%20downloads" />
   </p>
   <hr>
