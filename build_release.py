@@ -30,14 +30,15 @@ def build():
 
     print(f"Target executable filename configured as: {exe_name}.exe")
 
-    # 4. Compile standalone .exe mapping the external folder to local 'bin' mapping
+    # 4. Compile standalone .exe with custom icon and local bin folder mapping
     cmd = [
         "pyinstaller",
         "--noconfirm",
         "--onefile",
         "--windowed",
         f"--name={exe_name}",
-        f"--add-data={static_ffmpeg_dir};bin",  # Bundles binaries into the internal 'bin' directory
+        "--icon=icon.ico",                     # <-- КРИТИЧЕСКИЙ ФЛАГ ДЛЯ ЗАМЕНЫ ИКОНКИ
+        f"--add-data={static_ffmpeg_dir};bin", # Bundles binaries into the internal 'bin' directory
         "main.py"
     ]
 

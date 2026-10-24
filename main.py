@@ -55,6 +55,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Lossless Video Rotator Fixer")
         self.setMinimumSize(600, 450)
         self.setAcceptDrops(True)
+
+        from PyQt6.QtGui import QIcon
+        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.ico")))
         
         self.input_files = []
         self.selected_output_folder = ""
@@ -117,10 +120,26 @@ class MainWindow(QMainWindow):
 
         bottom_layout = QHBoxLayout()
         self.btn_start = QPushButton("START")
-        self.btn_start.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; height: 35px; width: 150px;")
+           # Устанавливаем умный стиль: зеленый для активной кнопки, серый для заблокированной
+        self.btn_start.setStyleSheet("""
+            QPushButton {
+                font-weight: bold; 
+                background-color: #4CAF50; 
+                color: white; 
+                height: 35px; 
+                width: 150px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:disabled {
+                background-color: #A0A0A0; 
+                color: #E0E0E0;
+            }
+        """)
         
-        self.lbl_status = QLabel("Engine: Autonomous static-ffmpeg (Full Binaries)")
-        self.lbl_status.setStyleSheet("color: green; font-style: italic;")
+        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+        self.lbl_status.setOpenExternalLinks(True)  
+        self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)  
         
         bottom_layout.addWidget(self.btn_start)
         bottom_layout.addStretch()
