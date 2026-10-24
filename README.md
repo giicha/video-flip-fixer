@@ -1,6 +1,18 @@
-# Video flip fixer
+<div align="center">
+    <p>
+        <img src="icon/icon.png" alt="logo" width="80">
+    </p>
+  <h1>Video flip fixer</h1>
+  <p>
+    <img src="https://img.shields.io/github/issues/giicha/video-flip-fixer" />
+    <img src="https://img.shields.io/github/license/giicha/video-flip-fixer" />
+    <img src="https://img.shields.io/npm/v/video-flip-fixer?label=version" />
+    <img src="https://img.shields.io/github/downloads/giicha/video-flip-fixer/total?label=github%20downloads" />
+  </p>
+  <hr>
+</div>
 
-A lightweight, high-performance, and fully standalone desktop application built with Python 3 and PyQt6. This tool performs cross-platform, **lossless (no re-encoding)** resetting of video orientation metadata matrices (such as the Apple iPhone `-display_rotation` flag) in just a fraction of a second.
+Application built with Python 3 and PyQt6. This tool performs **lossless (no re-encoding)** resetting of video orientation metadata matrices (such as the Apple iPhone `-display_rotation` flag) in just a fraction of a second.
 
 It uses an advanced **Web Deployment / Bundled Hybrid Architecture** powered by `static-ffmpeg` to achieve complete autonomy and offline capability without requiring any pre-installed global system dependencies.
 
@@ -13,24 +25,6 @@ It uses an advanced **Web Deployment / Bundled Hybrid Architecture** powered by 
 - ** Robust Offline Capability:** Once compiled or deployed, the application operates in a completely isolated air-gapped environment. It never makes stealthy update checks or network calls during runtime.
 - ** Professional Camera Support:** Enhanced block-by-block streaming metadata parser securely resolves complex or non-standard index definitions (`moov` / `tkhd` atoms) found at the very end of heavy cinema files (Sony, RED, ARRI, iPhone 15 Pro+ ProRES).
 - ** Automated CI/CD Releases:** Fully integrated with GitHub Actions. Pushing a version tag automatically compiles, signs, and attaches the release asset to your repository.
-
----
-
-## Project Structure
-
-Before initializing repository packaging, verify that your local workspace strictly matches the following layout:
-
-```text
-video-flip-fixer/
-├── .github/
-│   └── workflows/
-│       └── release.yml      # GitHub Actions CI/CD workflow script
-├── .gitignore               # Strict build cache exclusion patterns
-├── core.py                  # Isolated video metadata processing engine
-├── main.py                  # PyQt6 responsive Drag & Drop GUI interface
-├── build_release.py         # PyInstaller local/cloud build coordinator
-└── README.md                # Project documentation
-```
 
 ---
 
@@ -102,3 +96,21 @@ To release a new version with an automated version-tagged executable (e.g., `vid
 - **Compilation Engine:** PyInstaller 6.x+ (Configured with custom system stream interceptors to block windowed environment crashes)
 - **Target OS Deployment:** Windows 10 / 11 (Architecture target x64)
 - **Metadata Target:** `tkhd` atom display transformation matrix coordinates (Resetting translation maps to uniform identity grids)
+
+## License
+
+This repository is distributed under the terms of the **MIT License**. You are free to copy, modify, distribute, or use this extension setup commercially, provided the original author credits remain intact. See the `LICENSE` file for details.
+
+<div align="center">
+
+## Support the Project
+
+If this plugin saves you time and helps you keep track of your calculations, consider supporting its further development! Any contribution is highly appreciated.
+
+💵 **USDT (TRC-20):** `TS1x5AR87CipqAqF3bb7sqePBKqRLFEc4Q`
+
+🪙 **Bitcoin (BTC):** `bc1qpamcvn5le907jkt5zhhd4c2r783489nts72m8m`
+
+💎 **Ethereum (ETH):** `0x354dc4b9cEC4fC05021Cd26734B8cc839390e5af`
+
+</div>
