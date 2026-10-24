@@ -7,11 +7,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # --- CRITICAL WINDOWS TASKBAR ICON FIX ---
-# Forces Windows to treat the compiled executable as a distinct application, enabling custom taskbar icons.
 if sys.platform == "win32":
     try:
         import ctypes
-        myappid = "giicha.videoflipfixer.standalone.1.0"  # Unique Application ID
+        myappid = "giicha.videoflipfixer.standalone.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
@@ -135,13 +134,8 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         main_layout.addWidget(self.progress_bar)
 
-        # --- BOTTOM LAYOUT CONFIGURATION ---
         bottom_layout = QHBoxLayout()
-        
-        # 1. Properly declare btn_start as an instance attribute using self.
         self.btn_start = QPushButton("START")
-        
-        # 2. Apply advanced multi-line responsive stylesheet using triple quotes
         self.btn_start.setStyleSheet("""
             QPushButton {
                 font-weight: bold; 
@@ -157,15 +151,8 @@ class MainWindow(QMainWindow):
                 color: #E0E0E0;
             }
         """)
-                
-        # 3. Assemble the UI layout
-        bottom_layout.addWidget(self.btn_start)
-        bottom_layout.addStretch()
-        bottom_layout.addWidget(self.lbl_status)
-        main_layout.addLayout(bottom_layout)
-
-        # 4. Establish clickable repository link structure        
-        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
+        
+        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
         self.lbl_status.setOpenExternalLinks(True)
         self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
         
@@ -274,3 +261,4 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+    
