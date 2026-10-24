@@ -37,9 +37,9 @@ def build():
         "--onefile",
         "--windowed",
         f"--name={exe_name}",
-        "--icon=icon.ico",                     # Sets the logo for the .exe file asset
-        "icon.ico;.",                          # <-- ДОБАВЬТЕ ЭТУ СТРОКУ (Копирует иконку внутрь .exe корня)
-        f"--add-data={static_ffmpeg_dir};bin", # Bundles binaries into the internal 'bin' directory
+        "--icon=icon.ico",                          # Sets the layout logo for the .exe file asset
+        f"--add-data=icon.ico{os.path.pathsep}.",  # Safely bundles icon.ico into the root of the .exe sandbox
+        f"--add-data={static_ffmpeg_dir}{os.path.pathsep}bin", # Bundles binaries into the internal 'bin' directory
         "main.py"
     ]
 
