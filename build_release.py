@@ -10,19 +10,29 @@ def build():
     # 1. Fetch paths inside GitHub Actions environment to locate binaries
     try:
         ffmpeg_exe, ffprobe_exe = run.get_or_fetch_platform_executables_else_raise()
-        # Get the exact absolute folder where ffmpeg.exe physically resides (resolves ...\bin\win32)
         static_ffmpeg_dir = os.path.abspath(os.path.dirname(ffmpeg_exe))
         print(f"Target static-ffmpeg binaries found at: {static_ffmpeg_dir}")
     except Exception as e:
         print(f"Error resolving static-ffmpeg paths: {e}")
         sys.exit(1)
 
-    # 2. Clean up previous build directories
-    for folder in ["build", "dist"]:
+    # 2. Clean up previous build directories and local temporary bins
+    for folder in ["build", "dist", "bin"]:
         if os.path.exists(folder):
             shutil.rmtree(folder)
 
-    # 3. Dynamically determine the executable name based on GitHub Release Tag
+    # 3. Create a clean local 'bin' directory and copy the binaries directly into it
+    # This completely bypasses the PyInstaller Windows path slash parsing bugs
+    os.makedirs("bin", exist_ok=True)
+    try:
+        shutil.copy2(os.path.join(static_ffmpeg_dir, "ffmpeg.exe"), os.path.join("bin", "ffmpeg.exe"))
+        shutil.copy2(os.path.join(static_ffmpeg_dir, "ffprobe.exe"), os.path.join("bin", "ffprobe.exe"))
+        print("Successfully copied binaries into the local project bin/ folder.")
+    except Exception as copy_err:
+        print(f"Failed to copy binaries locally: {copy_err}")
+        sys.exit(1)
+
+    # 4. Dynamically determine the executable name based on GitHub Release Tag
     release_tag = os.environ.get("GITHUB_REF_NAME", "")
     if release_tag and release_tag.startswith("v"):
         exe_name = f"video-flip-fixer-{release_tag}"
@@ -31,8 +41,7 @@ def build():
 
     print(f"Target executable filename configured as: {exe_name}.exe")
 
-    # 4. Compile standalone .exe mapping files safely to the standard 'bin' folder
-    # Using explicit separate arguments avoids Windows folder loop bugs in PyInstaller
+    # 5. Compile standalone .exe mapping our safe clean local folders
     cmd = [
         "pyinstaller",
         "--noconfirm",
@@ -41,13 +50,17 @@ def build():
         f"--name={exe_name}",
         f"--icon=icon.ico",
         "--add-data", f"icon.ico{os.path.pathsep}.",  
-        "--add-data", f"{static_ffmpeg_dir}{os.path.pathsep}bin",  # Explicit separation fixes the crash
+        "--add-data", f"bin{os.path.pathsep}bin",  # Safe local path without internal Python backslashes
         "main.py"
     ]
 
     print("\n=== Running PyInstaller ===")
     result = subprocess.run(cmd, text=True)
     
+    # 6. Post-build cleanup of the temporary local bin folder
+    if os.path.exists("bin"):
+        shutil.rmtree("bin")
+        
     if result.returncode == 0:
         print("\n=== BUILD COMPLETED SUCCESSFULLY! ===")
         exe_path = os.path.join("dist", f"{exe_name}.exe")
