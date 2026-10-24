@@ -157,19 +157,15 @@ class MainWindow(QMainWindow):
                 color: #E0E0E0;
             }
         """)
-        
-        # 3. Establish clickable repository link structure
-        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
-        self.lbl_status.setOpenExternalLinks(True)
-        self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # 4. Assemble the UI layout
+                
+        # 3. Assemble the UI layout
         bottom_layout.addWidget(self.btn_start)
         bottom_layout.addStretch()
         bottom_layout.addWidget(self.lbl_status)
         main_layout.addLayout(bottom_layout)
-        
-        self.lbl_status = QLabel('<a href="https://github.com" style="color: #2481cc; text-decoration: none; font-style: italic;">GitHub: giicha/video-flip-fixer</a>')
+
+        # 4. Establish clickable repository link structure        
+        self.lbl_status = QLabel('<a href="https://github.com/giicha/video-flip-fixer" style="color: #2481cc; text-decoration: none; font-style: italic;">https://github.com/giicha/video-flip-fixer</a>')
         self.lbl_status.setOpenExternalLinks(True)
         self.lbl_status.setCursor(Qt.CursorShape.PointingHandCursor)
         
