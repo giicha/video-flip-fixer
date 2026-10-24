@@ -30,16 +30,16 @@ def build():
 
     print(f"Target executable filename configured as: {exe_name}.exe")
 
-    # 4. Compile standalone .exe with custom icon and internal data mappings
+    # 4. Compile standalone .exe with custom icon and explicit multiple data mappings
     cmd = [
         "pyinstaller",
         "--noconfirm",
         "--onefile",
         "--windowed",
         f"--name={exe_name}",
-        "--icon=icon.ico",                          # Sets the layout logo for the .exe file asset
-        f"--add-data=icon.ico{os.path.pathsep}.",  # Safely bundles icon.ico into the root of the .exe sandbox
-        f"--add-data={static_ffmpeg_dir}{os.path.pathsep}bin", # Bundles binaries into the internal 'bin' directory
+        f"--icon=icon.ico",
+        "--add-data", f"icon.ico{os.path.pathsep}.",  # First explicit mapping for app icon asset
+        "--add-data", f"{static_ffmpeg_dir}{os.path.pathsep}bin",  # Second explicit mapping for video utilities
         "main.py"
     ]
 

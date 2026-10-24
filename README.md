@@ -1,8 +1,9 @@
 <div align="center">
-    <p>
-        <img src="icon/icon.png" alt="logo" width="80">
-    </p>
-  <h1>Video flip fixer</h1>
+   <p>
+     <img src="icon/icon.png" alt="logo" width="80">
+   </p>
+   <h1>Video flip fixer</h1>
+    
   <p>
     <img src="https://img.shields.io/github/issues/giicha/video-flip-fixer" />
     <img src="https://img.shields.io/github/license/giicha/video-flip-fixer" />
