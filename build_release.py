@@ -22,7 +22,6 @@ def build():
             shutil.rmtree(folder)
 
     # 3. Create a clean local 'bin' directory and copy the binaries directly into it
-    # This completely bypasses the PyInstaller Windows path slash parsing bugs
     os.makedirs("bin", exist_ok=True)
     try:
         shutil.copy2(os.path.join(static_ffmpeg_dir, "ffmpeg.exe"), os.path.join("bin", "ffmpeg.exe"))
@@ -50,12 +49,19 @@ def build():
         f"--name={exe_name}",
         f"--icon=icon.ico",
         "--add-data", f"icon.ico{os.path.pathsep}.",  
-        "--add-data", f"bin{os.path.pathsep}bin",  # Safe local path without internal Python backslashes
+        "--add-data", f"bin{os.path.pathsep}bin",  
         "main.py"
     ]
 
     print("\n=== Running PyInstaller ===")
-    result = subprocess.run(cmd, text=True)
+    # Capture stderr to show the exact reason for the compilation crash
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
+    
+    print(result.stdout)
+    if result.returncode != 0:
+        print("\n=== PYINSTALLER COMPILATION ERROR LOG ===")
+        print(result.stderr)
+        print("=========================================\n")
     
     # 6. Post-build cleanup of the temporary local bin folder
     if os.path.exists("bin"):
