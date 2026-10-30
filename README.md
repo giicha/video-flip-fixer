@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/github/license/giicha/video-flip-fixer" />
     <img src="https://img.shields.io/github/downloads/giicha/video-flip-fixer/total?label=github%20downloads" />
   </p>
-  <hr>
+ 
 </div>
 
 Application built with Python 3 and PyQt6. This tool performs **lossless (no re-encoding)** resetting of video orientation metadata matrices (such as the Apple iPhone `-display_rotation` flag) in just a fraction of a second.
@@ -30,8 +30,6 @@ It uses an advanced **Web Deployment / Bundled Hybrid Architecture** powered by 
 - ** Professional Camera Support:** Enhanced block-by-block streaming metadata parser securely resolves complex or non-standard index definitions (`moov` / `tkhd` atoms) found at the very end of heavy cinema files (Sony, RED, ARRI, iPhone 15 Pro+ ProRES).
 - ** Automated CI/CD Releases:** Fully integrated with GitHub Actions. Pushing a version tag automatically compiles, signs, and attaches the release asset to your repository.
 
----
-
 ## Core Component Architectures
 
 ### 1. Graphical Interface (`main.py`)
@@ -42,8 +40,6 @@ Bypasses restrictive wrapper abstractions by executing clean, low-level `subproc
 
 ### 3. Cloud Packaging Specification (`build_release.py`)
 Automates the local discovery of absolute module environment paths on virtual hosts. It structures the output parameters of PyInstaller using the `--add-data` protocol, mapping compiled binary payloads directly into an internal standalone application subfolder named `bin/`.
-
----
 
 ## Local Development & Setup
 
@@ -67,8 +63,6 @@ To run the project locally from source using Visual Studio Code, follow these en
    ```
    *Note: On your first local launch, `static-ffmpeg` will securely stream verified, official production binaries into your Python site-packages environment layout.*
 
----
-
 ## CI/CD Deployment via GitHub Actions
 
 The compilation process is fully handled in the cloud using Microsoft Windows Runners. You never need to manually pack your files or risk local character mapping (`CP1252` vs `UTF-8`) compilation crashes.
@@ -91,8 +85,6 @@ To release a new version with an automated version-tagged executable (e.g., `vid
 3. **Monitor Cloud Pipeline:**
    Navigate to the **Actions** tab on your GitHub repository page. The automated runner will spin up a fresh Windows environment, resolve execution configurations, compile the single binary payload via PyInstaller, and attach the portable application to a freshly minted **GitHub Release** page automatically.
 
----
-
 ## Technical Specifications
 
 - **UI Framework:** PyQt6 (Qt 6.x)
@@ -101,6 +93,31 @@ To release a new version with an automated version-tagged executable (e.g., `vid
 - **Target OS Deployment:** Windows 10 / 11 (Architecture target x64)
 - **Metadata Target:** `tkhd` atom display transformation matrix coordinates (Resetting translation maps to uniform identity grids)
 
+## FFmpeg method explanation
+
+FFmpeg allows reset or remove the display rotation metadata of a video file without re-encoding the video and audio streams via the command line using the following command:
+
+   ```bash
+   ffmpeg -display_rotation 0 -i input.mp4 -c copy output.mp4
+   ```
+Here is the breakdown of how each part of the command works:
+- **-display_rotation 0**: This option sets the rotation metadata in the output file to 0 degrees. It is placed before the input file to modify how the input is processed or flagged. This is commonly used to fix videos that play sideways or upside down due to incorrect camera orientation tags (e.g., from smartphones).
+- **-i input.mp4**: Specifies the path to the input video file (input.mp4).
+- **-c copy**: Chooses the copy stream codec. Instead of decoding and re-encoding the video and audio tracks, ffmpeg simply copies the data packets directly. This makes the process extremely fast and ensures zero loss in quality.
+- **output.mp4**: Specifies the name of the new, modified output file.
+
+or in the batch case
+
+   ```bash
+   @echo on
+   set in=in
+   set out=out
+   for %%i in (%in%\*.*) do (
+	    echo "%%i"
+	    echo "%out%\%%~ni.*"
+	    ffmpeg -display_rotation 0 -i "%%i" -c copy "%out%\%%~ni.mp4"
+    )
+   ```
 ## License
 
 This repository is distributed under the terms of the **MIT License**. You are free to copy, modify, distribute, or use this extension setup commercially, provided the original author credits remain intact. See the `LICENSE` file for details.
