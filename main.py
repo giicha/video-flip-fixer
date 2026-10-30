@@ -100,7 +100,8 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(QLabel("<b>Save Options:</b>"))
         
-        self.radio_overwrite = QRadioButton("Overwrite original files <span style='color: #cc9900; font-weight: bold;'>[Use carefully]</span>")
+        self.radio_overwrite = QRadioButton()
+        self.radio_overwrite.setText("Overwrite original files <span style='color: #cc9900; font-weight: bold;'>[Use carefully]</span>")
         self.radio_copy_near = QRadioButton("Create copies nearby (with _fixed suffix)")
         self.radio_copy_folder = QRadioButton("Copy to specific folder:")
         self.radio_copy_near.setChecked(True)
