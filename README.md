@@ -32,13 +32,13 @@ It uses an advanced **Web Deployment / Bundled Hybrid Architecture** powered by 
 
 ## Core Component Architectures
 
-### 1. Graphical Interface (`main.py`)
+### 1. Graphical Interface (main.py)
 Implements an asynchronous PyQt6 thread workflow (`QThread`). Heavy operations (file IO execution, metadata extraction, structural cloning) are completely decoupled from the main thread, keeping the GUI smoothly responsive and preventing accidental OS freezes during batch operations.
 
-### 2. Video Processing Engine (`core.py`)
+### 2. Video Processing Engine (core.py)
 Bypasses restrictive wrapper abstractions by executing clean, low-level `subprocess` operations with `CREATE_NO_WINDOW` flags to suppress console popups. It dynamically maps execution directories using `sys._MEIPASS` when frozen inside a virtual boot sandbox environment.
 
-### 3. Cloud Packaging Specification (`build_release.py`)
+### 3. Cloud Packaging Specification (build_release.py)
 Automates the local discovery of absolute module environment paths on virtual hosts. It structures the output parameters of PyInstaller using the `--add-data` protocol, mapping compiled binary payloads directly into an internal standalone application subfolder named `bin/`.
 
 ## Local Development & Setup
