@@ -3,34 +3,150 @@ name: Build macOS App
 on: [push, workflow_dispatch]
 
 jobs:
-  build:
-    # Запускаем сборку на Intel macOS (Catalina/Big Sur совместимая среда)
-    runs-on: macos-13
-
+  build-macos:
+    runs-on: macos-latest
+    if: ${{ github.event.inputs.build_macos == 'true' }}
+    env:
+      CFFI_VERSION: "2.0.0"
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
+      - name: Install universal2 Python
+        run: |
+          set -euo pipefail
+          curl -LO https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg
+          sudo installer -pkg python-3.12.10-macos11.pkg -target /
+          echo "/Library/Frameworks/Python.framework/Versions/3.12/bin" >> "$GITHUB_PATH"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python3.12 -m pip install --upgrade pip setuptools wheel
+          python3.12 -m pip install delocate==0.13.0
 
-    - name: Build with PyInstaller
-      env:
-        MACOSX_DEPLOYMENT_TARGET: "10.15"
-      run: |
-        # Собираем приложение с флагом совместимости для Catalina
-        pyinstaller --onefile --windowed main.py
+          mkdir -p wheelhouse/arm64 wheelhouse/x86_64 wheelhouse/universal2
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-app
-        path: dist/
+          python3.12 -m pip download \
+            --only-binary=:all: \
+            --platform macosx_11_0_arm64 \
+            --python-version 3.12 \
+            --implementation cp \
+            -d wheelhouse/arm64 \
+            "cffi==$CFFI_VERSION" \
+            Pillow==12.1.0 \
+            psutil==7.0.0
+
+          python3.12 -m pip download \
+            --only-binary=:all: \
+            --platform macosx_10_13_x86_64 \
+            --python-version 3.12 \
+            --implementation cp \
+            -d wheelhouse/x86_64 \
+            "cffi==$CFFI_VERSION" \
+            Pillow==12.1.0
+
+          python3.12 -m pip download \
+            --only-binary=:all: \
+            --platform macosx_10_9_x86_64 \
+            --python-version 3.12 \
+            --implementation cp \
+            -d wheelhouse/x86_64 \
+            psutil==7.0.0
+
+          delocate-merge \
+            wheelhouse/arm64/cffi-*.whl \
+            wheelhouse/x86_64/cffi-*.whl \
+            -w wheelhouse/universal2
+
+          delocate-merge \
+            wheelhouse/arm64/pillow-12.1.0-*.whl \
+            wheelhouse/x86_64/pillow-12.1.0-*.whl \
+            -w wheelhouse/universal2
+
+          delocate-merge \
+            wheelhouse/arm64/psutil-7.0.0-*.whl \
+            wheelhouse/x86_64/psutil-7.0.0-*.whl \
+            -w wheelhouse/universal2
+
+          python3.12 -m pip install --no-deps wheelhouse/universal2/*.whl
+          python3.12 -m pip install .
+          python3.12 -m pip install pyinstaller==6.13.0
+
+      - name: Validate macOS GUI dependencies
+        run: |
+          python3.12 -m pip check
+          python3.12 -m py_compile macos.py
+          python3.12 -c "import AppKit, customtkinter, macos, pystray, tkinter"
+
+      - name: Create macOS icon
+        run: |
+          set -euo pipefail
+          python3.12 macos.py --render-app-icon icon.icns
+
+      - name: Build app with PyInstaller
+        run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
+
+      - name: Validate universal2 app bundle
+        run: |
+          set -euo pipefail
+          ICON_FILE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' \
+            'dist/video-flip-fixer.app/Contents/Info.plist')"
+          test -n "$ICON_FILE"
+          test -f "dist/video-flip-fixer.app/Contents/Resources/$ICON_FILE"
+          test -d "dist/video-flip-fixer.app/Contents/Resources/customtkinter"
+
+          found=0
+          while IFS= read -r -d '' file; do
+            if file "$file" | grep -q "Mach-O"; then
+              found=1
+              archs="$(lipo -archs "$file" 2>/dev/null || true)"
+              case "$archs" in
+                *arm64*x86_64*|*x86_64*arm64*) ;;
+                *)
+                  echo "Missing universal2 slices in $file: ${archs:-unknown}" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+          done < <(find "dist/video-flip-fixer.app" -type f -print0)
+
+          if [ "$found" -eq 0 ]; then
+            echo "No Mach-O files found in app bundle" >&2
+            exit 1
+          fi
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+          packaging/dmg/build_dmg.sh \
+            "dist/video-flip-fixer.app" \
+            "video-flip-fixer" \
+            "dist/video-flip-fixer_macos_universal.dmg"
+
+      - name: Validate DMG
+        run: |
+          set -euo pipefail
+          for DMG in "dist/video-flip-fixer_macos_universal.dmg"; do
+            MOUNT_DIR="$(mktemp -d)"
+            DEVICE="$(hdiutil attach \
+              -readonly \
+              -nobrowse \
+              -mountpoint "$MOUNT_DIR" \
+              "$DMG" \
+              | awk '/^\/dev\// { print $1; exit }')"
+
+            test -d "$MOUNT_DIR/video-flip-fixer.app"
+            test -L "$MOUNT_DIR/Applications"
+            test "$(readlink "$MOUNT_DIR/Applications")" = "/Applications"
+            test -f "$MOUNT_DIR/.background/background.tiff"
+            test -f "$MOUNT_DIR/.DS_Store"
+            hdiutil detach "$DEVICE"
+            rmdir "$MOUNT_DIR"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: video-flip-fixer-macOS
+          path: dist/video-flip-fixer_macos_universal.dmg
