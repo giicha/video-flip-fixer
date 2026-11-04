@@ -83,7 +83,7 @@ jobs:
         run: |
           python3.12 -m pip check
           python3.12 -m py_compile main.py
-          python3.12 -c "import AppKit, customtkinter, macos, pystray, tkinter"
+          python3.12 -c "import PyQt6, requests, static_ffmpeg, main"
 
       - name: Create macOS icon
         run: |
