@@ -9,7 +9,8 @@ on:
 jobs:
   build-macos:
     runs-on: macos-latest
-    if: ${{ github.event.inputs.build_macos == 'true' }}
+    # Временно удалите или закомментируйте эту строку:
+    # if: ${{ github.event.inputs.build_macos == 'true' }}
     env:
       CFFI_VERSION: "2.0.0"
     steps:
