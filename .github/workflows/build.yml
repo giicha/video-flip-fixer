@@ -1,6 +1,6 @@
 name: Build macOS App
 
-on: [push, workflow_dispatch]
+on:
   push:
     tags:
       - 'v*'
