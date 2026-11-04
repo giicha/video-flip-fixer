@@ -82,13 +82,13 @@ jobs:
       - name: Validate macOS GUI dependencies
         run: |
           python3.12 -m pip check
-          python3.12 -m py_compile macos.py
+          python3.12 -m py_compile main.py
           python3.12 -c "import AppKit, customtkinter, macos, pystray, tkinter"
 
       - name: Create macOS icon
         run: |
           set -euo pipefail
-          python3.12 macos.py --render-app-icon icon.icns
+          python3.12 main.py --render-app-icon icon.icns
 
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
