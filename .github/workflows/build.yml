@@ -96,11 +96,12 @@ jobs:
 
       - name: Build app with PyInstaller
         run: |
-          python3.12 -m PyInstaller main.py \
+          SCRIPT_PATH=$(find . -name "main.py" | head -n 1)
+          python3.12 -m PyInstaller "$SCRIPT_PATH" \
             --noconfirm \
             --windowed \
             --name "video-flip-fixer" \
-            --icon "icon.icns"
+            --icon "icon"
 
       - name: Validate universal2 app bundle
         run: |
