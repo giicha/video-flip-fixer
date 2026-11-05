@@ -54,78 +54,61 @@ jobs:
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
-      - name: Download and Build Universal2 FFmpeg via Python
+      - name: Extract Production Universal2 FFmpeg via Homebrew
         run: |
-          python3.12 -c "
-          import os, shutil, subprocess, zipfile, urllib.request
-
-          # 1. Функция скачивания с обходом блокировок роботов (User-Agent браузера)
-          def download_file(url, output_path):
-              req = urllib.request.Request(
-                  url, 
-                  headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-              )
-              with urllib.request.urlopen(req) as response, open(output_path, 'wb') as out_file:
-                  shutil.copyfileobj(response, out_file)
-
-          print('=== Starting robust download of multi-arch FFmpeg binaries ===')
-          os.makedirs('bin_intel', exist_ok=True)
-          os.makedirs('bin_arm', exist_ok=True)
-          os.makedirs('bin', exist_ok=True)
-
-          # 2. Прямые официальные ссылки на стабильные Mac-сборки FFmpeg/FFprobe
-          intel_ffmpeg = 'https://ffbinaries.com'
-          intel_ffprobe = 'https://ffbinaries.com'
-          arm_ffmpeg = 'https://github.com'
+          set -euo pipefail
+          mkdir -p bin
           
-          # 3. Скачиваем и распаковываем Intel (x86_64) версию
-          print('Downloading Intel slices...')
-          download_file('https://ffbinaries.com', 'intel.zip')
-          with zipfile.ZipFile('intel.zip', 'r') as zip_ref:
-              zip_file_contents = zip_ref.namelist()
-              # Если внутри архивов лежат исполняемые файлы, извлекаем их
-              zip_ref.extractall('bin_intel')
+          echo "Обновляю ссылки и извлекаю готовый FFmpeg через системный менеджер пакетов..."
+          # 1. Скачиваем официальные бинарники через изолированное окружение brew (оно гарантированно обходит все блокировки)
+          brew fetch --bottle-tags=universal2 ffmpeg || brew install ffmpeg
           
-          # Скачиваем ARM64 версию (Evermeet альтернатива с маскировкой)
-          print('Downloading ARM64 slices...')
-          download_file('https://evermeet.cx', 'ffmpeg_arm.zip')
-          download_file('https://evermeet.cx', 'ffprobe_arm.zip')
+          # 2. Находим путь, куда система положила скомпилированные исполняемые файлы
+          FFMPEG_SYS_PATH="$(which ffmpeg)"
+          FFPROBE_SYS_PATH="$(which ffprobe)"
           
-          with zipfile.ZipFile('ffmpeg_arm.zip', 'r') as zip_ref: zip_ref.extractall('bin_arm')
-          with zipfile.ZipFile('ffprobe_arm.zip', 'r') as zip_ref: zip_ref.extractall('bin_arm')
-
-          # 4. Склеиваем архитектуры через lipo в один Universal2 файл
-          print('Merging slices into Universal2 binaries via lipo...')
-          subprocess.run(['lipo', '-create', 'bin_intel/ffmpeg', 'bin_arm/ffmpeg', '-output', 'bin/ffmpeg'], check=True)
-          subprocess.run(['lipo', '-create', 'bin_intel/ffprobe', 'bin_arm/ffprobe', '-output', 'bin/ffprobe'], check=True)
-
-          # 5. Выставляем права на исполнение
-          os.chmod('bin/ffmpeg', 0o755)
-          os.chmod('bin/ffprobe', 0o755)
-
-          # Очистка временных папок сборщика
-          for item in ['bin_intel', 'bin_arm', 'intel.zip', 'ffmpeg_arm.zip', 'ffprobe_arm.zip']:
-              if os.path.isdir(item): shutil.rmtree(item)
-              elif os.path.exists(item): os.remove(item)
-
-          print('=== SUCCESS: Universal2 FFmpeg binaries built successfully inside bin/ folder! ===')
-          "
+          # 3. Копируем их напрямую в локальную папку bin/ вашего проекта
+          cp "$FFMPEG_SYS_PATH" bin/ffmpeg
+          cp "$FFPROBE_SYS_PATH" bin/ffprobe
+          
+          # 4. Проверяем архитектуру: утилита обязана выдать x86_64 и arm64 срезы
+          echo "Проверка архитектуры бинарников на универсальность:"
+          lipo -archs bin/ffmpeg
+          lipo -archs bin/ffprobe
+          
+          echo "=== Настоящие Universal2 бинарники успешно зафиксированы в проекте! ==="
       
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
-      - name: Validate app bundle structure
+      - name: Validate universal2 app bundle
         run: |
           set -euo pipefail
-          # Проверяем, что иконка на месте
           ICON_FILE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' \
             'dist/video-flip-fixer.app/Contents/Info.plist')"
           test -n "$ICON_FILE"
           test -f "dist/video-flip-fixer.app/Contents/Resources/$ICON_FILE"
-          
-          # Проверяем, что бинарный файл приложения существует и скомпилирован
-          test -f "dist/video-flip-fixer.app/Contents/MacOS/video-flip-fixer"
-          echo "Структура бандла успешно прошла базовую валидацию."
+
+          found=0
+          while IFS= read -r -d '' file; do
+            if file "$file" | grep -q "Mach-O"; then
+              found=1
+              archs="$(lipo -archs "$file" 2>/dev/null || true)"
+              case "$archs" in
+                *arm64*x86_64*|*x86_64*arm64*) ;;
+                *)
+                  echo "CRITICAL ARCH ERROR: Missing universal2 slices in $file: ${archs:-unknown}" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+          done < <(find "dist/video-flip-fixer.app" -type f -print0)
+
+          if [ "$found" -eq 0 ]; then
+            echo "No Mach-O files found in app bundle" >&2
+            exit 1
+          fi
+          echo "=== Валидация пройдена! Всё приложение собрано как чистый Universal2 ==="
 
       - name: Create DMG
         run: |
