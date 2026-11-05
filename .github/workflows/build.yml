@@ -96,7 +96,7 @@ jobs:
 
       - name: Build app with PyInstaller
         run: |
-          python3.12 -m PyInstaller macos.py \
+          python3.12 -m PyInstaller main.py \
             --noconfirm \
             --windowed \
             --name "video-flip-fixer" \
