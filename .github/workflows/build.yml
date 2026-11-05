@@ -54,34 +54,44 @@ jobs:
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
-      - name: Extract Production Universal2 Static FFmpeg via Homebrew
+      - name: Build Genuine Universal2 FFmpeg via Python and lipo
         run: |
-          set -euo pipefail
-          mkdir -p bin
+          python3.12 -c "
+          import os, sys, shutil, subprocess
+
+          # 1. Сначала ставим пакет static-ffmpeg (он скачает родную ARM64 версию)
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'static-ffmpeg==2.5.0'], check=True)
+          import static_ffmpeg
+          from static_ffmpeg import run
           
-          echo "Подключаем репозиторий статических сборок и устанавливаем FFmpeg..."
-          # 1. Добавляем формулу для сборки статического FFmpeg
-          brew tap osx-cross/ffmpeg
+          print('=== Downloading Native ARM64 slices ===')
+          ffmpeg_arm, ffprobe_arm = run.get_or_fetch_platform_executables_else_raise()
+          arm_dir = os.path.dirname(ffmpeg_arm)
           
-          # 2. Устанавливаем ffmpeg как полностью автономный бинарник (без dylib зависимостей)
-          brew install osx-cross/ffmpeg/ffmpeg
+          # 2. Скачиваем альтернативную Intel (x86_64) версию
+          print('=== Downloading Intel x86_64 slices ===')
+          # Обманываем внутренний веб-инвайронмент библиотеки, принудительно меняя платформу
+          os.environ['PLATFORM'] = 'macosx_10_9_x86_64'
+          import importlib
+          importlib.reload(static_ffmpeg.run)
           
-          # 3. Находим системные пути к установленным файлам
-          FFMPEG_SYS_PATH="$(which ffmpeg)"
-          FFPROBE_SYS_PATH="$(which ffprobe)"
+          ffmpeg_intel, ffprobe_intel = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
+          intel_dir = os.path.dirname(ffmpeg_intel)
           
-          # 4. Копируем их в локальную папку bin/ нашего проекта
-          cp "$FFMPEG_SYS_PATH" bin/ffmpeg
-          cp "$FFPROBE_SYS_PATH" bin/ffprobe
+          # 3. Создаем чистую целевую папку bin в корне проекта
+          os.makedirs('bin', exist_ok=True)
           
-          # 5. Выставляем права на исполнение
-          chmod +x bin/ffmpeg bin/ffprobe
+          # 4. Склеиваем архитектуры с помощью lipo по абсолютным путям, исключая дубликаты
+          print('Merging slices into a genuine Universal2 fat binary...')
+          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffmpeg'), os.path.join(intel_dir, 'ffmpeg'), '-output', 'bin/ffmpeg'], check=True)
+          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffprobe'), os.path.join(intel_dir, 'ffprobe'), '-output', 'bin/ffprobe'], check=True)
           
-          echo "Проверка архитектуры собранного статического FFmpeg:"
-          lipo -archs bin/ffmpeg
-          lipo -archs bin/ffprobe
+          # 5. Гарантируем права на запуск в macOS
+          os.chmod('bin/ffmpeg', 0o755)
+          os.chmod('bin/ffprobe', 0o755)
           
-          echo "=== Монолитный статический FFmpeg успешно интегрирован! ==="
+          print('=== SUCCESS: Genuine Universal2 binaries created inside bin/ ===')
+          "
       
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
