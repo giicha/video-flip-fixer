@@ -88,28 +88,24 @@ jobs:
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
-      - name: Download macOS FFmpeg and FFprobe binaries
+      - name: Extract macOS FFmpeg via static-ffmpeg
         run: |
-          set -euo pipefail
-          # 1. Создаем папку bin в корне репозитория
-          mkdir -p bin
+          python3.12 -c "
+          import os, shutil, static_ffmpeg
+          # 1. Заставляем библиотеку скачать официальные бинарники для macOS
+          ffmpeg_exe, ffprobe_exe = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
+          static_ffmpeg_dir = os.path.dirname(ffmpeg_exe)
           
-          # 2. Скачиваем официальный universal2 (Intel+ARM) релиз ffmpeg от Evermeet/OsXreleaser
-          curl -L https://evermeet.cx -o ffmpeg.zip
-          curl -L https://evermeet.cx -o ffprobe.zip
+          # 2. Создаем чистую папку bin в корне проекта
+          os.makedirs('bin', exist_ok=True)
           
-          # 3. Распаковываем их прямо в созданную папку bin
-          unzip -q ffmpeg.zip -d bin/
-          unzip -q ffprobe.zip -d bin/
+          # 3. Копируем бинарники (на macOS у них нет расширения .exe)
+          shutil.copy2(os.path.join(static_ffmpeg_dir, 'ffmpeg'), os.path.join('bin', 'ffmpeg'))
+          shutil.copy2(os.path.join(static_ffmpeg_dir, 'ffprobe'), os.path.join('bin', 'ffprobe'))
           
-          # 4. Выставляем права на исполнение
-          chmod +x bin/ffmpeg bin/ffprobe
-          
-          # 5. Удаляем временные архивы
-          rm ffmpeg.zip ffprobe.zip
-          
-          echo "FFmpeg и FFprobe успешно загружены в папку bin/"
-
+          print('FFmpeg и FFprobe для macOS успешно скопированы в bin/')
+          "
+      
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
