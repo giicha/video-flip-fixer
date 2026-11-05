@@ -94,8 +94,8 @@ jobs:
           
           echo "Создаю DMG образ с помощью hdiutil..."
           
-          # 1. Создаем пустой DMG нужного размера, куда поместится ваше приложение
-          hdiutil create -megabytes 150 -fs HFS+ -volname "video-flip-fixer" -attach dist/temp.dmg
+          # 1. Создаем пустой DMG увеличенного размера (500 МБ), куда гарантированно поместится тяжелый PyQt6 + FFmpeg
+          hdiutil create -megabytes 500 -fs HFS+ -volname "video-flip-fixer" -attach dist/temp.dmg
           
           # 2. Находим, куда примонтировался наш временный DMG
           MOUNT_DIR=$(df | grep "/Volumes/video-flip-fixer" | awk '{print $9}')
@@ -104,19 +104,19 @@ jobs:
           # 3. Копируем собранное приложение .app на этот диск
           cp -R "dist/video-flip-fixer.app" "$MOUNT_DIR/"
           
-          # 4. Создаем символическую ссылку на папку Applications (чтобы пользователь мог удобно перетащить приложение)
+          # 4. Создаем символическую ссылку на папку Applications для удобства перетаскивания пользователя
           ln -s /Applications "$MOUNT_DIR/Applications"
           
           # 5. Размонтируем диск
           hdiutil detach "$MOUNT_DIR"
           
-          # 6. Конвертируем DMG в сжатый формат (дистрибутив) для конечных пользователей
+          # 6. Конвертируем DMG в сжатый формат (дистрибутив), который сожмет пустые мегабайты
           hdiutil convert dist/temp.dmg -format UDZO -o dist/video-flip-fixer_macos_universal.dmg
           
           # 7. Удаляем временный файл
           rm dist/temp.dmg
           
-          echo "Готово! Финальный DMG успешно создан в папки dist/."
+          echo "Готово! Финальный сжатый DMG успешно создан в папке dist/."
 
       - name: Validate DMG
         run: |
