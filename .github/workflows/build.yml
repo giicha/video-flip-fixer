@@ -86,22 +86,10 @@ jobs:
           python3.12 -c "import PyQt6, requests, static_ffmpeg, main"
 
       - name: Verify macOS icon
-        run: |
-          set -euo pipefail
-          if [ ! -f "icon.icns" ]; then
-            echo "Ошибка: Файл icon.icns не найден в корне репозитория!" >&2
-            exit 1
-          fi
-          echo "Иконка найдена."
+        run: test -f "icon.icns"
 
       - name: Build app with PyInstaller
-        run: |
-          SCRIPT_PATH=$(find . -name "main.py" | head -n 1)
-          python3.12 -m PyInstaller "$SCRIPT_PATH" \
-            --noconfirm \
-            --windowed \
-            --name "video-flip-fixer" \
-            --icon "icon"
+        run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
       - name: Validate universal2 app bundle
         run: |
