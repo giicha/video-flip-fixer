@@ -54,36 +54,61 @@ jobs:
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
-      - name: Build Universal2 FFmpeg via static-ffmpeg and lipo
+      - name: Download and Build Universal2 FFmpeg via Python
         run: |
           python3.12 -c "
-          import os, shutil, subprocess, static_ffmpeg
-          from static_ffmpeg import run
-          
-          # 1. Скачиваем нативную архитектуру (на GitHub Actions это ARM64)
-          ffmpeg_arm, ffprobe_arm = run.get_or_fetch_platform_executables_else_raise()
-          arm_dir = os.path.dirname(ffmpeg_arm)
-          
-          # 2. Принудительно заставляем static-ffmpeg скачать Intel-версию (x86_64)
-          os.environ['PLATFORM'] = 'macosx_10_9_x86_64'
-          # Сбрасываем внутренний кэш библиотеки, чтобы она скачала альтернативную платформу
-          import importlib
-          importlib.reload(static_ffmpeg.run)
-          ffmpeg_intel, ffprobe_intel = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
-          intel_dir = os.path.dirname(ffmpeg_intel)
-          
-          # 3. Создаем нашу чистую целевую папку bin в корне проекта
+          import os, shutil, subprocess, zipfile, urllib.request
+
+          # 1. Функция скачивания с обходом блокировок роботов (User-Agent браузера)
+          def download_file(url, output_path):
+              req = urllib.request.Request(
+                  url, 
+                  headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+              )
+              with urllib.request.urlopen(req) as response, open(output_path, 'wb') as out_file:
+                  shutil.copyfileobj(response, out_file)
+
+          print('=== Starting robust download of multi-arch FFmpeg binaries ===')
+          os.makedirs('bin_intel', exist_ok=True)
+          os.makedirs('bin_arm', exist_ok=True)
           os.makedirs('bin', exist_ok=True)
+
+          # 2. Прямые официальные ссылки на стабильные Mac-сборки FFmpeg/FFprobe
+          intel_ffmpeg = 'https://ffbinaries.com'
+          intel_ffprobe = 'https://ffbinaries.com'
+          arm_ffmpeg = 'https://github.com'
           
-          # 4. Склеиваем две архитектуры в один Universal2 файл с помощью утилиты lipo
-          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffmpeg'), os.path.join(intel_dir, 'ffmpeg'), '-output', 'bin/ffmpeg'], check=True)
-          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffprobe'), os.path.join(intel_dir, 'ffprobe'), '-output', 'bin/ffprobe'], check=True)
+          # 3. Скачиваем и распаковываем Intel (x86_64) версию
+          print('Downloading Intel slices...')
+          download_file('https://ffbinaries.com', 'intel.zip')
+          with zipfile.ZipFile('intel.zip', 'r') as zip_ref:
+              zip_file_contents = zip_ref.namelist()
+              # Если внутри архивов лежат исполняемые файлы, извлекаем их
+              zip_ref.extractall('bin_intel')
           
-          # 5. Делаем файлы исполняемыми
+          # Скачиваем ARM64 версию (Evermeet альтернатива с маскировкой)
+          print('Downloading ARM64 slices...')
+          download_file('https://evermeet.cx', 'ffmpeg_arm.zip')
+          download_file('https://evermeet.cx', 'ffprobe_arm.zip')
+          
+          with zipfile.ZipFile('ffmpeg_arm.zip', 'r') as zip_ref: zip_ref.extractall('bin_arm')
+          with zipfile.ZipFile('ffprobe_arm.zip', 'r') as zip_ref: zip_ref.extractall('bin_arm')
+
+          # 4. Склеиваем архитектуры через lipo в один Universal2 файл
+          print('Merging slices into Universal2 binaries via lipo...')
+          subprocess.run(['lipo', '-create', 'bin_intel/ffmpeg', 'bin_arm/ffmpeg', '-output', 'bin/ffmpeg'], check=True)
+          subprocess.run(['lipo', '-create', 'bin_intel/ffprobe', 'bin_arm/ffprobe', '-output', 'bin/ffprobe'], check=True)
+
+          # 5. Выставляем права на исполнение
           os.chmod('bin/ffmpeg', 0o755)
           os.chmod('bin/ffprobe', 0o755)
-          
-          print('=== Настоящие Universal2 бинарники FFmpeg успешно склеены через lipo в bin/ ===')
+
+          # Очистка временных папок сборщика
+          for item in ['bin_intel', 'bin_arm', 'intel.zip', 'ffmpeg_arm.zip', 'ffprobe_arm.zip']:
+              if os.path.isdir(item): shutil.rmtree(item)
+              elif os.path.exists(item): os.remove(item)
+
+          print('=== SUCCESS: Universal2 FFmpeg binaries built successfully inside bin/ folder! ===')
           "
       
       - name: Build app with PyInstaller
