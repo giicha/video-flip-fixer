@@ -33,6 +33,10 @@ jobs:
 
           mkdir -p wheelhouse/arm64 wheelhouse/x86_64 wheelhouse/universal2
 
+          # Фиксируем одинаковые версии для обеих архитектур
+          PYQT_VER="==6.11.0"
+          QT_VER="==6.11.2"
+
           # 1. Скачиваем arm64 версии
           python3.12 -m pip download \
             --only-binary=:all: \
@@ -43,11 +47,11 @@ jobs:
             "cffi==$CFFI_VERSION" \
             Pillow==12.1.0 \
             psutil==7.0.0 \
-            PyQt6 \
-            PyQt6-Qt6 \
+            "PyQt6$PYQT_VER" \
+            "PyQt6-Qt6$QT_VER" \
             PyQt6-sip
 
-          # 2. Скачиваем x86_64 версии (Для Qt6 поднята минимальная планка до macosx_10_14)
+          # 2. Скачиваем x86_64 версии (с теми же версиями пакетов)
           python3.12 -m pip download \
             --only-binary=:all: \
             --platform macosx_10_13_x86_64 \
@@ -64,7 +68,7 @@ jobs:
             --implementation cp \
             -d wheelhouse/x86_64 \
             psutil==7.0.0 \
-            PyQt6-Qt6 \
+            "PyQt6-Qt6$QT_VER" \
             PyQt6-sip
 
           # 3. Склеиваем архитектуры в universal2
@@ -73,14 +77,14 @@ jobs:
           delocate-merge wheelhouse/arm64/psutil-7.0.0-*.whl wheelhouse/x86_64/psutil-7.0.0-*.whl -w wheelhouse/universal2
           delocate-merge wheelhouse/arm64/pyqt6_qt6-*.whl wheelhouse/x86_64/pyqt6_qt6-*.whl -w wheelhouse/universal2
           
-          # PyQt6-sip склеиваем только если arm64-версия не была universal2 изначально
+          # Проверяем PyQt6-sip на universal2
           if ! ls wheelhouse/arm64/pyqt6_sip-*.whl | grep -q "universal2"; then
             delocate-merge wheelhouse/arm64/pyqt6_sip-*.whl wheelhouse/x86_64/pyqt6_sip-*.whl -w wheelhouse/universal2
           else
             cp wheelhouse/arm64/pyqt6_sip-*.whl wheelhouse/universal2/
           fi
 
-          # Копируем PyQt6, так как он изначально скачался как universal2
+          # Копируем PyQt6 (он изначально скачивается как universal2)
           cp wheelhouse/arm64/pyqt6-*.whl wheelhouse/universal2/
 
           # 4. Устанавливаем готовые universal2 пакеты
