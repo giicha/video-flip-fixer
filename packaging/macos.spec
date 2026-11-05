@@ -33,6 +33,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
+    datas=[('../bin', 'bin')],  # ОБЯЗАТЕЛЬНО: переносим ffmpeg внутрь приложения, как обсуждали ранее
     target_arch='universal2',
     codesign_identity=None,
     entitlements_file=None,
