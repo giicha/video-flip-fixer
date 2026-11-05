@@ -29,55 +29,21 @@ jobs:
         run: |
           set -euo pipefail
           python3.12 -m pip install --upgrade pip setuptools wheel
-          python3.12 -m pip install delocate==0.13.0
-          python3.12 -m pip install -r requirements.txt
-
-          mkdir -p wheelhouse/arm64 wheelhouse/x86_64 wheelhouse/universal2
-
-          # Фиксируем версию 6.4.2, которая не требует UniformTypeIdentifiers
-          PYQT_VER="==6.4.2"
-          QT_VER="==6.4.2"
-
-          # 1. Скачиваем arm64 версии
-          python3.12 -m pip download \
-            --only-binary=:all: \
-            --platform macosx_11_0_arm64 \
-            --python-version 3.12 \
-            --implementation cp \
-            -d wheelhouse/arm64 \
-            "cffi==$CFFI_VERSION" \
-            Pillow==10.2.0 \
-            psutil==5.9.8 \
-            "PyQt6$PYQT_VER" \
-            "PyQt6-Qt6$QT_VER" \
-            PyQt6-sip
-
-          # 2. Скачиваем x86_64 версии для старых Mac
-          python3.12 -m pip download \
+          python3.12 -m pip install pyinstaller==6.13.0
+          
+          # Устанавливаем пакеты напрямую под x86_64 архитектуру
+          python3.12 -m pip install \
             --only-binary=:all: \
             --platform macosx_10_14_x86_64 \
-            --python-version 3.12 \
             --implementation cp \
-            -d wheelhouse/x86_64 \
+            "PyQt6==6.4.2" \
+            "PyQt6-Qt6==6.4.2" \
+            "PyQt6-sip" \
             "cffi==$CFFI_VERSION" \
-            Pillow==10.2.0 \
-            psutil==5.9.8 \
-            "PyQt6$PYQT_VER" \
-            "PyQt6-Qt6$QT_VER" \
-            PyQt6-sip
-
-          # 3. Склеиваем архитектуры в universal2 (используя поиск без учета регистра через find)
-          delocate-merge $(find wheelhouse/arm64 -iname "cffi-*.whl") $(find wheelhouse/x86_64 -iname "cffi-*.whl") -w wheelhouse/universal2
-          delocate-merge $(find wheelhouse/arm64 -iname "pillow-*.whl") $(find wheelhouse/x86_64 -iname "pillow-*.whl") -w wheelhouse/universal2
-          delocate-merge $(find wheelhouse/arm64 -iname "psutil-*.whl") $(find wheelhouse/x86_64 -iname "psutil-*.whl") -w wheelhouse/universal2
-          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6_qt6-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6_qt6-*.whl") -w wheelhouse/universal2
-          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6_sip-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6_sip-*.whl") -w wheelhouse/universal2
-          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6-6.4.2-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6-6.4.2-*.whl") -w wheelhouse/universal2
-
-          # 4. Устанавливаем готовые universal2 пакеты
-          python3.12 -m pip install --no-deps wheelhouse/universal2/*.whl
-          python3.12 -m pip install pycparser
-          python3.12 -m pip install pyinstaller==6.13.0
+            "Pillow==10.2.0" \
+            "psutil==5.9.8" \
+            "static-ffmpeg" \
+            "pycparser"
 
       - name: Validate macOS GUI dependencies
         run: |
