@@ -57,39 +57,46 @@ jobs:
       - name: Build Genuine Universal2 FFmpeg via Python and lipo
         run: |
           python3.12 -c "
-          import os, sys, shutil, subprocess
-
-          # 1. Сначала ставим пакет static-ffmpeg (он скачает родную ARM64 версию)
-          subprocess.run([sys.executable, '-m', 'pip', 'install', 'static-ffmpeg==2.5.0'], check=True)
+          import os, sys, shutil, subprocess, importlib
           import static_ffmpeg
           from static_ffmpeg import run
-          
+
+          # Создаем чистые изолированные папки для архитектур
+          os.makedirs('bin_arm', exist_ok=True)
+          os.makedirs('bin_intel', exist_ok=True)
+          os.makedirs('bin', exist_ok=True)
+
+          # 1. Скачиваем родную архитектуру (на GitHub Actions macOS-latest это ARM64)
           print('=== Downloading Native ARM64 slices ===')
-          ffmpeg_arm, ffprobe_arm = run.get_or_fetch_platform_executables_else_raise()
-          arm_dir = os.path.dirname(ffmpeg_arm)
-          
-          # 2. Скачиваем альтернативную Intel (x86_64) версию
+          ffmpeg_arm_src, ffprobe_arm_src = run.get_or_fetch_platform_executables_else_raise()
+          shutil.copy2(ffmpeg_arm_src, 'bin_arm/ffmpeg')
+          shutil.copy2(ffprobe_arm_src, 'bin_arm/ffprobe')
+
+          # Очищаем кэш внутри static-ffmpeg, чтобы заставить его скачать другую платформу
+          shutil.rmtree(os.path.dirname(ffmpeg_arm_src), ignore_errors=True)
+
+          # 2. Переключаем платформу на Intel x86_64
           print('=== Downloading Intel x86_64 slices ===')
-          # Обманываем внутренний веб-инвайронмент библиотеки, принудительно меняя платформу
           os.environ['PLATFORM'] = 'macosx_10_9_x86_64'
-          import importlib
           importlib.reload(static_ffmpeg.run)
           
-          ffmpeg_intel, ffprobe_intel = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
-          intel_dir = os.path.dirname(ffmpeg_intel)
-          
-          # 3. Создаем чистую целевую папку bin в корне проекта
-          os.makedirs('bin', exist_ok=True)
-          
-          # 4. Склеиваем архитектуры с помощью lipo по абсолютным путям, исключая дубликаты
+          ffmpeg_intel_src, ffprobe_intel_src = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
+          shutil.copy2(ffmpeg_intel_src, 'bin_intel/ffmpeg')
+          shutil.copy2(ffprobe_intel_src, 'bin_intel/ffprobe')
+
+          # 3. Склеиваем разные архитектуры из изолированных папок через lipo в корень bin/
           print('Merging slices into a genuine Universal2 fat binary...')
-          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffmpeg'), os.path.join(intel_dir, 'ffmpeg'), '-output', 'bin/ffmpeg'], check=True)
-          subprocess.run(['lipo', '-create', os.path.join(arm_dir, 'ffprobe'), os.path.join(intel_dir, 'ffprobe'), '-output', 'bin/ffprobe'], check=True)
-          
-          # 5. Гарантируем права на запуск в macOS
+          subprocess.run(['lipo', '-create', 'bin_arm/ffmpeg', 'bin_intel/ffmpeg', '-output', 'bin/ffmpeg'], check=True)
+          subprocess.run(['lipo', '-create', 'bin_arm/ffprobe', 'bin_intel/ffprobe', '-output', 'bin/ffprobe'], check=True)
+
+          # 4. Выставляем права на исполнение
           os.chmod('bin/ffmpeg', 0o755)
           os.chmod('bin/ffprobe', 0o755)
-          
+
+          # Очищаем временный мусор
+          shutil.rmtree('bin_arm', ignore_errors=True)
+          shutil.rmtree('bin_intel', ignore_errors=True)
+
           print('=== SUCCESS: Genuine Universal2 binaries created inside bin/ ===')
           "
       
