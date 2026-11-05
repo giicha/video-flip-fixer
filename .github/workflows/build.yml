@@ -88,6 +88,28 @@ jobs:
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
+      - name: Download macOS FFmpeg and FFprobe binaries
+        run: |
+          set -euo pipefail
+          # 1. Создаем папку bin в корне репозитория
+          mkdir -p bin
+          
+          # 2. Скачиваем официальный universal2 (Intel+ARM) релиз ffmpeg от Evermeet/OsXreleaser
+          curl -L https://evermeet.cx -o ffmpeg.zip
+          curl -L https://evermeet.cx -o ffprobe.zip
+          
+          # 3. Распаковываем их прямо в созданную папку bin
+          unzip -q ffmpeg.zip -d bin/
+          unzip -q ffprobe.zip -d bin/
+          
+          # 4. Выставляем права на исполнение
+          chmod +x bin/ffmpeg bin/ffprobe
+          
+          # 5. Удаляем временные архивы
+          rm ffmpeg.zip ffprobe.zip
+          
+          echo "FFmpeg и FFprobe успешно загружены в папку bin/"
+
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
