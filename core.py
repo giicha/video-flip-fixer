@@ -5,7 +5,11 @@ import json
 
 # Определение базовой директории для PyInstaller
 if getattr(sys, 'frozen', False):
+    # На macOS файлы могут лежать либо в папке ресурсов (_MEIPASS), 
+    # либо прямо рядом с исполняемым файлом (Contents/MacOS)
     BASE_DIR = sys._MEIPASS
+    if not os.path.exists(os.path.join(BASE_DIR, "bin")):
+        BASE_DIR = os.path.dirname(sys.executable)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
