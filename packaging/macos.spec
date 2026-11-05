@@ -1,17 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import customtkinter  # Импортируем модуль напрямую
 
 block_cipher = None
 
-# Автоматически получаем точный путь к папке customtkinter
-customtkinter_path = os.path.dirname(customtkinter.__file__)
-
+# Ссылаемся на папку customtkinter, которую PyInstaller найдет сам благодаря переменной окружения
 a = Analysis(
-    ['../main.py'],  # Путь к вашему главному скрипту относительно папки packaging
+    ['../macos.py'],
     pathex=[],
     binaries=[],
-    datas=[(os.path.join(site_packages, 'customtkinter'), 'customtkinter')],
+    datas=[('customtkinter', 'customtkinter')],  # Просто имя папки
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
