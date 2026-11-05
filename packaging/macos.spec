@@ -1,17 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import customtkinter  # Импортируем модуль напрямую
 
 block_cipher = None
 
-# Автоматически получаем точный путь к папке customtkinter
-customtkinter_path = os.path.dirname(customtkinter.__file__)
-
 a = Analysis(
-    ['../main.py'],  # Путь к вашему главному скрипту относительно папки packaging
+    ['../main.py'],  # Ваш новый главный скрипт
     pathex=[],
     binaries=[],
-    datas=[(os.path.join(site_packages, 'customtkinter'), 'customtkinter')],
+    datas=[],        # PyQt6 не требует ручного добавления ассетов, как customtkinter
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -40,7 +36,7 @@ exe = EXE(
     target_arch='universal2',
     codesign_identity=None,
     entitlements_file=None,
-    icon='../icon.icns',  # Путь к иконке в корне репозитория
+    icon='../icon.icns',
 )
 coll = COLLECT(
     exe,
@@ -55,6 +51,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='video-flip-fixer.app',
-    icon='../icon.icns',  # Указываем иконку для macOS бандла
+    icon='../icon.icns',
     bundle_identifier='com.video-flip-fixer.app',
 )
