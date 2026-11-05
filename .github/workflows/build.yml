@@ -33,7 +33,7 @@ jobs:
 
           mkdir -p wheelhouse/arm64 wheelhouse/x86_64 wheelhouse/universal2
 
-          # 1. Скачиваем arm64 версии (добавлены PyQt6 и PyQt6-Qt6)
+          # 1. Скачиваем arm64 версии
           python3.12 -m pip download \
             --only-binary=:all: \
             --platform macosx_11_0_arm64 \
@@ -44,9 +44,10 @@ jobs:
             Pillow==12.1.0 \
             psutil==7.0.0 \
             PyQt6 \
-            PyQt6-Qt6
+            PyQt6-Qt6 \
+            PyQt6-sip
 
-          # 2. Скачиваем x86_64 версии для Intel
+          # 2. Скачиваем x86_64 версии (Для Qt6 поднята минимальная планка до macosx_10_14)
           python3.12 -m pip download \
             --only-binary=:all: \
             --platform macosx_10_13_x86_64 \
@@ -58,20 +59,29 @@ jobs:
 
           python3.12 -m pip download \
             --only-binary=:all: \
-            --platform macosx_10_9_x86_64 \
+            --platform macosx_10_14_x86_64 \
             --python-version 3.12 \
             --implementation cp \
             -d wheelhouse/x86_64 \
             psutil==7.0.0 \
-            PyQt6 \
-            PyQt6-Qt6
+            PyQt6-Qt6 \
+            PyQt6-sip
 
-          # 3. Склеиваем архитектуры в честный universal2
+          # 3. Склеиваем архитектуры в universal2
           delocate-merge wheelhouse/arm64/cffi-*.whl wheelhouse/x86_64/cffi-*.whl -w wheelhouse/universal2
           delocate-merge wheelhouse/arm64/pillow-12.1.0-*.whl wheelhouse/x86_64/pillow-12.1.0-*.whl -w wheelhouse/universal2
           delocate-merge wheelhouse/arm64/psutil-7.0.0-*.whl wheelhouse/x86_64/psutil-7.0.0-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/PyQt6-*.whl wheelhouse/x86_64/PyQt6-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/PyQt6_Qt6-*.whl wheelhouse/x86_64/PyQt6_Qt6-*.whl -w wheelhouse/universal2
+          delocate-merge wheelhouse/arm64/pyqt6_qt6-*.whl wheelhouse/x86_64/pyqt6_qt6-*.whl -w wheelhouse/universal2
+          
+          # PyQt6-sip склеиваем только если arm64-версия не была universal2 изначально
+          if ! ls wheelhouse/arm64/pyqt6_sip-*.whl | grep -q "universal2"; then
+            delocate-merge wheelhouse/arm64/pyqt6_sip-*.whl wheelhouse/x86_64/pyqt6_sip-*.whl -w wheelhouse/universal2
+          else
+            cp wheelhouse/arm64/pyqt6_sip-*.whl wheelhouse/universal2/
+          fi
+
+          # Копируем PyQt6, так как он изначально скачался как universal2
+          cp wheelhouse/arm64/pyqt6-*.whl wheelhouse/universal2/
 
           # 4. Устанавливаем готовые universal2 пакеты
           python3.12 -m pip install --no-deps wheelhouse/universal2/*.whl
