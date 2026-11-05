@@ -33,6 +33,7 @@ jobs:
 
           mkdir -p wheelhouse/arm64 wheelhouse/x86_64 wheelhouse/universal2
 
+          # 1. Скачиваем arm64 версии (добавлены PyQt6 и PyQt6-Qt6)
           python3.12 -m pip download \
             --only-binary=:all: \
             --platform macosx_11_0_arm64 \
@@ -41,8 +42,11 @@ jobs:
             -d wheelhouse/arm64 \
             "cffi==$CFFI_VERSION" \
             Pillow==12.1.0 \
-            psutil==7.0.0
+            psutil==7.0.0 \
+            PyQt6 \
+            PyQt6-Qt6
 
+          # 2. Скачиваем x86_64 версии для Intel
           python3.12 -m pip download \
             --only-binary=:all: \
             --platform macosx_10_13_x86_64 \
@@ -58,23 +62,18 @@ jobs:
             --python-version 3.12 \
             --implementation cp \
             -d wheelhouse/x86_64 \
-            psutil==7.0.0
+            psutil==7.0.0 \
+            PyQt6 \
+            PyQt6-Qt6
 
-          delocate-merge \
-            wheelhouse/arm64/cffi-*.whl \
-            wheelhouse/x86_64/cffi-*.whl \
-            -w wheelhouse/universal2
+          # 3. Склеиваем архитектуры в честный universal2
+          delocate-merge wheelhouse/arm64/cffi-*.whl wheelhouse/x86_64/cffi-*.whl -w wheelhouse/universal2
+          delocate-merge wheelhouse/arm64/pillow-12.1.0-*.whl wheelhouse/x86_64/pillow-12.1.0-*.whl -w wheelhouse/universal2
+          delocate-merge wheelhouse/arm64/psutil-7.0.0-*.whl wheelhouse/x86_64/psutil-7.0.0-*.whl -w wheelhouse/universal2
+          delocate-merge wheelhouse/arm64/PyQt6-*.whl wheelhouse/x86_64/PyQt6-*.whl -w wheelhouse/universal2
+          delocate-merge wheelhouse/arm64/PyQt6_Qt6-*.whl wheelhouse/x86_64/PyQt6_Qt6-*.whl -w wheelhouse/universal2
 
-          delocate-merge \
-            wheelhouse/arm64/pillow-12.1.0-*.whl \
-            wheelhouse/x86_64/pillow-12.1.0-*.whl \
-            -w wheelhouse/universal2
-
-          delocate-merge \
-            wheelhouse/arm64/psutil-7.0.0-*.whl \
-            wheelhouse/x86_64/psutil-7.0.0-*.whl \
-            -w wheelhouse/universal2
-
+          # 4. Устанавливаем готовые universal2 пакеты
           python3.12 -m pip install --no-deps wheelhouse/universal2/*.whl
           python3.12 -m pip install pycparser
           python3.12 -m pip install pyinstaller==6.13.0
