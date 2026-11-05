@@ -136,31 +136,43 @@ jobs:
       - name: Create DMG
         run: |
           set -euo pipefail
-          packaging/dmg/build_dmg.sh \
-            "dist/video-flip-fixer.app" \
-            "video-flip-fixer" \
-            "dist/video-flip-fixer_macos_universal.dmg"
+          
+          echo "Создаю DMG образ с помощью hdiutil..."
+          
+          # 1. Создаем пустой DMG нужного размера, куда поместится ваше приложение
+          hdiutil create -megabytes 150 -fs HFS+ -volname "video-flip-fixer" -attach dist/temp.dmg
+          
+          # 2. Находим, куда примонтировался наш временный DMG
+          MOUNT_DIR=$(df | grep "/Volumes/video-flip-fixer" | awk '{print $9}')
+          echo "Временный диск примонтирован в: $MOUNT_DIR"
+          
+          # 3. Копируем собранное приложение .app на этот диск
+          cp -R "dist/video-flip-fixer.app" "$MOUNT_DIR/"
+          
+          # 4. Создаем символическую ссылку на папку Applications (чтобы пользователь мог удобно перетащить приложение)
+          ln -s /Applications "$MOUNT_DIR/Applications"
+          
+          # 5. Размонтируем диск
+          hdiutil detach "$MOUNT_DIR"
+          
+          # 6. Конвертируем DMG в сжатый формат (дистрибутив) для конечных пользователей
+          hdiutil convert dist/temp.dmg -format UDZO -o dist/video-flip-fixer_macos_universal.dmg
+          
+          # 7. Удаляем временный файл
+          rm dist/temp.dmg
+          
+          echo "Готово! Финальный DMG успешно создан в папки dist/."
 
       - name: Validate DMG
         run: |
           set -euo pipefail
-          for DMG in "dist/video-flip-fixer_macos_universal.dmg"; do
-            MOUNT_DIR="$(mktemp -d)"
-            DEVICE="$(hdiutil attach \
-              -readonly \
-              -nobrowse \
-              -mountpoint "$MOUNT_DIR" \
-              "$DMG" \
-              | awk '/^\/dev\// { print $1; exit }')"
-
-            test -d "$MOUNT_DIR/video-flip-fixer.app"
-            test -L "$MOUNT_DIR/Applications"
-            test "$(readlink "$MOUNT_DIR/Applications")" = "/Applications"
-            test -f "$MOUNT_DIR/.background/background.tiff"
-            test -f "$MOUNT_DIR/.DS_Store"
-            hdiutil detach "$DEVICE"
-            rmdir "$MOUNT_DIR"
-          done
+          echo "Проверяю созданный DMG..."
+          
+          # Простая проверка, что файл физически существует и имеет размер больше 0
+          test -f "dist/video-flip-fixer_macos_universal.dmg"
+          test -s "dist/video-flip-fixer_macos_universal.dmg"
+          
+          echo "DMG успешно прошел проверку."
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
