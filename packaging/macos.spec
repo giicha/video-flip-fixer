@@ -1,9 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import site
+import customtkinter  # Импортируем модуль напрямую
 
 block_cipher = None
-site_packages = site.getsitepackages()[0]
+
+# Автоматически получаем точный путь к папке customtkinter
+customtkinter_path = os.path.dirname(customtkinter.__file__)
 
 a = Analysis(
     ['../main.py'],  # Путь к вашему главному скрипту относительно папки packaging
