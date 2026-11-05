@@ -28,14 +28,14 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
+          # 1. Обновляем базовые утилиты сборки
           python3.12 -m pip install --upgrade pip setuptools wheel
+          
+          # 2. Устанавливаем PyInstaller фиксированной версии
           python3.12 -m pip install pyinstaller==6.13.0
           
-          # Устанавливаем пакеты напрямую под x86_64 архитектуру
+          # 3. Ставим совместимые с вашей macOS библиотеки напрямую
           python3.12 -m pip install \
-            --only-binary=:all: \
-            --platform macosx_10_14_x86_64 \
-            --implementation cp \
             "PyQt6==6.4.2" \
             "PyQt6-Qt6==6.4.2" \
             "PyQt6-sip" \
