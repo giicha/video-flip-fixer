@@ -89,7 +89,13 @@ jobs:
         run: test -f "icon.icns"
 
       - name: Build app with PyInstaller
-        run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
+        run: |
+          # Автоматически находим точный путь к site-packages, где лежит customtkinter
+          SITE_PACKAGES_PATH=$(python3.12 -c "import customtkinter, os; print(os.path.dirname(os.path.dirname(customtkinter.__file__)))")
+          echo "Путь к зависимостям: $SITE_PACKAGES_PATH"
+          
+          # Запускаем сборку, передавая путь в PYTHONPATH
+          PYTHONPATH="$SITE_PACKAGES_PATH" python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
       - name: Validate universal2 app bundle
         run: |
