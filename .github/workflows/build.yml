@@ -66,13 +66,13 @@ jobs:
             "PyQt6-Qt6$QT_VER" \
             PyQt6-sip
 
-          # 3. Склеиваем архитектуры в universal2
-          delocate-merge wheelhouse/arm64/cffi-*.whl wheelhouse/x86_64/cffi-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/Pillow-*.whl wheelhouse/x86_64/Pillow-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/psutil-*.whl wheelhouse/x86_64/psutil-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/PyQt6_Qt6-*.whl wheelhouse/x86_64/PyQt6_Qt6-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/PyQt6_sip-*.whl wheelhouse/x86_64/PyQt6_sip-*.whl -w wheelhouse/universal2
-          delocate-merge wheelhouse/arm64/PyQt6-6.4.2-*.whl wheelhouse/x86_64/PyQt6-6.4.2-*.whl -w wheelhouse/universal2
+          # 3. Склеиваем архитектуры в universal2 (используя поиск без учета регистра через find)
+          delocate-merge $(find wheelhouse/arm64 -iname "cffi-*.whl") $(find wheelhouse/x86_64 -iname "cffi-*.whl") -w wheelhouse/universal2
+          delocate-merge $(find wheelhouse/arm64 -iname "pillow-*.whl") $(find wheelhouse/x86_64 -iname "pillow-*.whl") -w wheelhouse/universal2
+          delocate-merge $(find wheelhouse/arm64 -iname "psutil-*.whl") $(find wheelhouse/x86_64 -iname "psutil-*.whl") -w wheelhouse/universal2
+          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6_qt6-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6_qt6-*.whl") -w wheelhouse/universal2
+          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6_sip-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6_sip-*.whl") -w wheelhouse/universal2
+          delocate-merge $(find wheelhouse/arm64 -iname "pyqt6-6.4.2-*.whl") $(find wheelhouse/x86_64 -iname "pyqt6-6.4.2-*.whl") -w wheelhouse/universal2
 
           # 4. Устанавливаем готовые universal2 пакеты
           python3.12 -m pip install --no-deps wheelhouse/universal2/*.whl
