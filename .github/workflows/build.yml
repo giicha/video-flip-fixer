@@ -98,7 +98,7 @@ jobs:
             'dist/video-flip-fixer.app/Contents/Info.plist')"
           test -n "$ICON_FILE"
           test -f "dist/video-flip-fixer.app/Contents/Resources/$ICON_FILE"
-          test -d "dist/video-flip-fixer.app/Contents/Resources/customtkinter"
+          # Строка проверки customtkinter удалена, так как теперь используется PyQt6
 
           found=0
           while IFS= read -r -d '' file; do
