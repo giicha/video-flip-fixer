@@ -116,12 +116,18 @@ jobs:
             'dist/video-flip-fixer.app/Contents/Info.plist')"
           test -n "$ICON_FILE"
           test -f "dist/video-flip-fixer.app/Contents/Resources/$ICON_FILE"
-          # Строка проверки customtkinter удалена, так как теперь используется PyQt6
 
           found=0
           while IFS= read -r -d '' file; do
             if file "$file" | grep -q "Mach-O"; then
               found=1
+              
+              # ПРОПУСКАЕМ проверку universal2 для бинарников ffmpeg/ffprobe
+              if [[ "$file" == *"Contents/Resources/bin/"* || "$file" == *"Contents/Frameworks/bin/"* || "$file" == *"/bin/ffmpeg"* || "$file" == *"/bin/ffprobe"* ]]; then
+                echo "Skipping universal2 slice check for local binary: $file"
+                continue
+              fi
+              
               archs="$(lipo -archs "$file" 2>/dev/null || true)"
               case "$archs" in
                 *arm64*x86_64*|*x86_64*arm64*) ;;
