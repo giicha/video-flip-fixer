@@ -7,7 +7,7 @@ a = Analysis(
     ['../main.py'],  # Ваш новый главный скрипт
     pathex=[],
     binaries=[],
-    datas=[],        # PyQt6 не требует ручного добавления ассетов, как customtkinter
+    datas=[('../bin', 'bin')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
