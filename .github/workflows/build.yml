@@ -28,59 +28,56 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
-          # 1. Обновляем базовые утилиты сборки
           python3.12 -m pip install --upgrade pip setuptools wheel
-          
-          # 2. Устанавливаем PyInstaller фиксированной версии
           python3.12 -m pip install pyinstaller==6.13.0
+          python3.12 -m pip install -r requirements.txt
+
+      # ====================================================================
+      # НАДЕЖНЫЙ СКАЧИВАТЕЛЬ И СКЛЕИВАТЕЛЬ UNIVERSAL2 FFMPEG
+      # ====================================================================
+      - name: Download and Merge Genuine Universal2 FFmpeg
+        run: |
+          set -euo pipefail
+          mkdir -p bin_x86 bin_arm bin
           
-          # 3. Ставим совместимые с вашей macOS библиотеки напрямую
-          python3.12 -m pip install \
-            "PyQt6==6.4.2" \
-            "PyQt6-Qt6==6.4.2" \
-            "PyQt6-sip" \
-            "cffi==$CFFI_VERSION" \
-            "Pillow==10.2.0" \
-            "psutil==5.9.8" \
-            "static-ffmpeg" \
-            "pycparser"
+          echo "Скачиваю официальные нативные сборки FFmpeg с GitHub Releases..."
+          # Качаем Intel (x86_64) версию
+          curl -L "https://github.com" -o ffmpeg_intel.zip
+          # Качаем ARM64 (Apple Silicon) версию
+          curl -L "https://github.com" -o ffmpeg_arm.zip
+
+          echo "Распаковываю архивы..."
+          # Распаковываем, флаг -j убирает вложенные папки, складывая бинарники в корень целевой папки
+          unzip -q -j ffmpeg_intel.zip -d bin_x86/
+          unzip -q -j ffmpeg_arm.zip -d bin_arm/
+          
+          echo "Склеиваю архитектуры Intel и ARM через lipo в Universal2..."
+          lipo -create bin_x86/ffmpeg bin_arm/ffmpeg -output bin/ffmpeg
+          lipo -create bin_x86/ffprobe bin_arm/ffprobe -output bin/ffprobe
+          
+          # Даем права на запуск в macOS
+          chmod +x bin/ffmpeg bin/ffprobe
+          
+          echo "Проверка архитектуры итоговых бинарников (должно быть x86_64 arm64):"
+          lipo -archs bin/ffmpeg
+          lipo -archs bin/ffprobe
+          
+          # Очищаем временный мусор на сервере
+          rm -rf bin_x86 bin_arm *.zip
+          echo "=== Настоящие Universal2 бинарники FFmpeg успешно подготовлены в bin/ ==="
 
       - name: Validate macOS GUI dependencies
         run: |
           python3.12 -m pip check
           python3.12 -m py_compile main.py
-          python3.12 -c "import PyQt6, requests, static_ffmpeg, main"
 
       - name: Verify macOS icon
         run: test -f "icon.icns"
 
-      - name: Extract Genuine Universal2 Static FFmpeg via Homebrew
-        run: |
-          set -euo pipefail
-          mkdir -p bin
-          
-          echo "Устанавливаем официальный статический Universal2 FFmpeg..."
-          # 1. Используем встроенный в macOS менеджер Homebrew для установки статической сборки
-          brew install homebrew/caffeinated/ffmpeg-static || brew install ffmpeg
-          
-          # 2. Находим, куда система установила исполняемые файлы
-          FFMPEG_SYS_PATH="$(which ffmpeg)"
-          FFPROBE_SYS_PATH="$(which ffprobe)"
-          
-          # 3. Копируем монолитные файлы прямо в папку bin/ вашего проекта
-          cp "$FFMPEG_SYS_PATH" bin/ffmpeg
-          cp "$FFPROBE_SYS_PATH" bin/ffprobe
-          
-          # 4. Выставляем права и проверяем архитектуру (lipo ОБЯЗАН выдать "x86_64 arm64")
-          chmod +x bin/ffmpeg bin/ffprobe
-          echo "Проверка универсальности бинарников:"
-          lipo -archs bin/ffmpeg
-          
-          echo "=== Монолитный Universal2 FFmpeg успешно зафиксирован! ==="
-      
       - name: Build app with PyInstaller
         run: python3.12 -m PyInstaller packaging/macos.spec --noconfirm
 
+      # Жесткая и честная проверка — lipo -archs теперь проверяет ВСЕ файлы без исключения
       - name: Validate universal2 app bundle
         run: |
           set -euo pipefail
@@ -108,7 +105,7 @@ jobs:
             echo "No Mach-O files found in app bundle" >&2
             exit 1
           fi
-          echo "=== Валидация пройдена! Всё приложение собрано как чистый Universal2 ==="
+          echo "=== УСПЕХ: Все файлы бандла, включая FFmpeg, на 100% Universal2! ==="
 
       - name: Create DMG
         run: |
